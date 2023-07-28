@@ -1549,7 +1549,7 @@ EOF
 
 					if (($sDefault = $oField->GetChildText('default_image')) && (strlen($sDefault) > 0))
 					{
-						$aParameters['default_image'] = "utils::GetAbsoluteUrlModulesRoot().'$sModuleRelativeDir/$sDefault'";
+						$aParameters['default_image'] = "'$sModuleRelativeDir/$sDefault'";
 					}
 					else
 					{
@@ -1804,8 +1804,8 @@ EOF
 					$sColor = $oItem->GetChildText('color');
 					if (($sIcon = $oItem->GetChildText('icon')) && (strlen($sIcon) > 0))
 					{
-						$sIcon = $sModuleRelativeDir.'/'.$sIcon;
-						$sIcon = "utils::GetAbsoluteUrlModulesRoot().'$sIcon'";
+						$sIcon = $sModuleRelativeDir . '/' . $sIcon;
+						$sIcon = "'$sIcon'";
 					}
 					else
 					{

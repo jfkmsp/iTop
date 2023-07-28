@@ -1476,10 +1476,12 @@ abstract class DBObject implements iDisplay
 
 		if($this->HasHighlightIcon()) {
 			$sIconUrl = MetaModel::GetHighlightScale($sClass)[$this->ComputeHighlightCode()]['icon'];
-			if($bImgTag) {
-				return "<img src=\"$sIconUrl\" style=\"vertical-align:middle\"/>";
+			if (!empty($sIconUrl)) {
+				$sIconUrl = utils::GetAbsoluteUrlModulesRoot() . $sIconUrl;
 			}
-			else {
+			if ($bImgTag) {
+				return "<img src=\"$sIconUrl\" style=\"vertical-align:middle\"/>";
+			} else {
 				return $sIconUrl;
 			}
 		}
