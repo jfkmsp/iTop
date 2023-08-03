@@ -1024,7 +1024,13 @@ class utils
      */
 	public static function GetAbsoluteUrlAppRoot($bForceTrustProxy = false)
 	{
+		static $sUrlCache = null;
+
 		$sUrl = self::GetConfig()->Get('app_root_url');
+		if ((false === $bForceTrustProxy) && (false === is_null($sUrlCache))) {
+			return $sUrlCache;
+		}
+
 		if ($sUrl === '') {
 			$sUrl = self::GetDefaultUrlAppRoot($bForceTrustProxy);
 		} elseif (strpos($sUrl, SERVER_NAME_PLACEHOLDER) > -1) {
@@ -1037,6 +1043,8 @@ class utils
 			$sUrl = str_replace(SERVER_NAME_PLACEHOLDER, $sServerName, $sUrl);
 		}
 
+		$sUrlCache = $sUrl;
+		
 		return $sUrl;
 	}
 
