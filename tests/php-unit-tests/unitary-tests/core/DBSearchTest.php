@@ -739,4 +739,39 @@ class DBSearchTest extends ItopDataTestCase
 		$oSearch->MakeSelectQuery();
 		self::assertTrue(true);
 	}
+
+    public function GetTestFunctionToArrayProvider()
+    {
+        return array(
+                'select id from functionalCI' => array(
+                        'SELECT FunctionalCI',
+                        'id',
+                ),
+                'select name from functionalCI' => array(
+                        'SELECT FunctionalCI',
+                        'name',
+                ),
+        );
+    }
+
+    /**
+     * @dataProvider GetTestFunctionToArrayProvider
+     *
+     * @return void
+     * @throws \ConfigException
+     * @throws \CoreException
+     * @throws \MissingQueryArgument
+     * @throws \MySQLException
+     * @throws \MySQLHasGoneAwayException
+     * @throws \OQLException
+     */
+    public function testFunctionToArray($sQuery, $sField){
+		$oSearch = \DBObjectSearch::FromOQL($sQuery);
+        $aResToDataArray = $oSearch->ToDataArray(array($sField));
+        asort($aResToDataArray);
+        $aResSelectColumnToArray = $oSearch->SelectColumnToArray($sField);
+        asort($aResSelectColumnToArray);
+        self::assertEquals($aResToDataArray, $aResSelectColumnToArray, 'ToDataArray and SelectColumnToArray must return the same results');
+    }
+
 }

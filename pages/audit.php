@@ -113,7 +113,7 @@ function GetRuleResultFilter($iRuleId, $oDefinitionFilter, $oAppContext)
 	{
 		// The query returns only the valid elements, all the others are invalid
 		// Warning : we're generating a `WHERE ID IN`... query, and this could be very slow if there are lots of id !
-		$aValidRows = $oRuleFilter->ToDataArray(array('id'));
+      	$aValidRows = $oRuleFilter->ToDataArray(array('id'));
 		$aValidIds = array();
 		foreach($aValidRows as $aRow)
 		{
@@ -317,7 +317,7 @@ try
 						try
 						{
 							$oFilter = GetRuleResultFilter($oAuditRule->GetKey(), $oDefinitionFilter, $oAppContext);
-							$aErrors = $oFilter->ToDataArray(array('id'));
+							$aErrors = $oFilter->SelectColumnToArray('id');
 							$iErrorsCount = count($aErrors);
 							foreach($aErrors as $aErrorRow)
 							{
