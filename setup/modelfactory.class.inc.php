@@ -163,7 +163,7 @@ class MFModule
 	{
 		$this->sId = $sId;
 
-		list($this->sName, $this->sVersion) = ModuleDiscovery::GetModuleName($sId);
+		[$this->sName, $this->sVersion] = ModuleDiscovery::GetModuleName($sId);
 		if (strlen($this->sVersion) == 0)
 		{
 			$this->sVersion = '1.0.0';
@@ -567,30 +567,30 @@ class ModelFactory
 		$this->oRoot = $this->oDOMDocument->CreateElement('itop_design');
 		$this->oRoot->setAttribute('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance");
 		$this->oRoot->setAttribute('version', ITOP_DESIGN_LATEST_VERSION);
-		$this->oDOMDocument->AppendChild($this->oRoot);
+		$this->oDOMDocument->appendChild($this->oRoot);
 		$this->oModules = $this->oDOMDocument->CreateElement('loaded_modules');
-		$this->oRoot->AppendChild($this->oModules);
+		$this->oRoot->appendChild($this->oModules);
 		$this->oClasses = $this->oDOMDocument->CreateElement('classes');
-		$this->oRoot->AppendChild($this->oClasses);
+		$this->oRoot->appendChild($this->oClasses);
 		$this->oDictionaries = $this->oDOMDocument->CreateElement('dictionaries');
-		$this->oRoot->AppendChild($this->oDictionaries);
+		$this->oRoot->appendChild($this->oDictionaries);
 
 		foreach (self::$aWellKnownParents as $sWellKnownParent)
 		{
 			$this->AddWellKnownParent($sWellKnownParent);
 		}
 		$this->oMenus = $this->oDOMDocument->CreateElement('menus');
-		$this->oRoot->AppendChild($this->oMenus);
+		$this->oRoot->appendChild($this->oMenus);
 
 		$this->oMeta = $this->oDOMDocument->CreateElement('meta');
-		$this->oRoot->AppendChild($this->oMeta);
+		$this->oRoot->appendChild($this->oMeta);
 		$this->oMeta = $this->oDOMDocument->CreateElement('events');
-		$this->oRoot->AppendChild($this->oMeta);
+		$this->oRoot->appendChild($this->oMeta);
 
 		foreach ($aRootNodeExtensions as $sElementName)
 		{
 			$oElement = $this->oDOMDocument->CreateElement($sElementName);
-			$this->oRoot->AppendChild($oElement);
+			$this->oRoot->appendChild($oElement);
 		}
 		self::$aLoadedModules = array();
 		self::$aLoadErrors = array();
@@ -652,58 +652,44 @@ class ModelFactory
 	 * @throws \DOMFormatException
 	 * @throws \Exception
 	 */
-	public function LoadDelta($oSourceNode, $oTargetParentNode)
+	public function LoadDelta($oSourceNode, $oTargetParentNode, bool $bHierarchicalClasses = true)
 	{
-		if (!$oSourceNode instanceof DOMElement)
-		{
+		if (!$oSourceNode instanceof DOMElement) {
 			return;
 		}
 		//echo "Load $oSourceNode->tagName::".$oSourceNode->getAttribute('id')." (".$oSourceNode->getAttribute('_delta').")<br/>\n";
-		$oTarget = $this->oDOMDocument;
+		if ($oTargetParentNode instanceof MFDocument) {
+			$oTarget = $oTargetParentNode;
+		} else {
+			$oTarget = $oTargetParentNode->ownerDocument;
+		}
 
 		$sDeltaSpec = $oSourceNode->getAttribute('_delta');
-		if (($oSourceNode->tagName == 'class') && ($oSourceNode->parentNode->tagName == 'classes') && ($oSourceNode->parentNode->parentNode->tagName == 'itop_design'))
-		{
+		if ($bHierarchicalClasses && ($oSourceNode->tagName === 'class') && ($oSourceNode->parentNode->tagName === 'classes') && ($oSourceNode->parentNode->parentNode->tagName === 'itop_design')) {
 			$sParentId = $oSourceNode->GetChildText('parent');
-			if (($sDeltaSpec == 'define') || ($sDeltaSpec == 'force'))
-			{
+			if (($sDeltaSpec == 'define') || ($sDeltaSpec == 'force')) {
 				// This tag is organized in hierarchy: determine the real parent node (as a subnode of the current node)
 				$oTargetParentNode = $oTarget->GetNodeById('/itop_design/classes//class', $sParentId)->item(0);
 
-				if (!$oTargetParentNode)
-				{
-					// echo "Dumping target doc - looking for '$sParentId'<br/>\n";
-					// $this->oDOMDocument->firstChild->Dump();
+				if (!$oTargetParentNode) {
 					$sPath = MFDocument::GetItopNodePath($oSourceNode);
-					$iLine = $oSourceNode->getLineNo();
+					$iLine = $this->GetXMLLineNumber($oSourceNode);
 					throw new MFException($sPath.' at line '.$iLine.": parent class '$sParentId' could not be found",
 						MFException::PARENT_NOT_FOUND, $iLine, $sPath, $sParentId);
 				}
-			}
-			else
-			{
+			} else {
 				$oTargetNode = $oTarget->GetNodeById('/itop_design/classes//class', $oSourceNode->getAttribute('id'))->item(0);
-				if (!$oTargetNode)
-				{
-					if ($sDeltaSpec === 'if_exists')
-					{
+				if (!$oTargetNode) {
+					if ($sDeltaSpec === 'if_exists') {
 						// Just ignore it
-					}
-					else
-					{
-						// echo "Dumping target doc - looking for '".$oSourceNode->getAttribute('id')."'<br/>\n";
-						// $this->oDOMDocument->firstChild->Dump();
+					} else {
 						$sPath = MFDocument::GetItopNodePath($oSourceNode);
-						$iLine = $oSourceNode->getLineNo();
+						$iLine = $this->GetXMLLineNumber($oSourceNode);
 						throw new MFException($sPath.' at line '.$iLine.": could not be found", MFException::NOT_FOUND, $iLine, $sPath);
-
 					}
-				}
-				else
-				{
+				} else {
 					$oTargetParentNode = $oTargetNode->parentNode;
-					if (($sDeltaSpec == 'redefine') && ($oTargetParentNode->getAttribute('id') != $sParentId))
-					{
+					if (($sDeltaSpec == 'redefine') && ($oTargetParentNode->getAttribute('id') != $sParentId)) {
 						// A class that has moved <=> deletion and creation elsewhere
 						$oTargetParentNode = $oTarget->GetNodeById('/itop_design/classes//class', $sParentId)->item(0);
 						$oTargetNode->Delete();
@@ -711,7 +697,6 @@ class ModelFactory
 						$sDeltaSpec = 'define';
 					}
 				}
-
 			}
 		}
 
@@ -728,21 +713,18 @@ class ModelFactory
 				if ($oTargetNode) {
 					foreach ($oSourceNode->childNodes as $oSourceChild) {
 						// Continue deeper
-						$this->LoadDelta($oSourceChild, $oTargetNode);
+						$this->LoadDelta($oSourceChild, $oTargetNode, $bHierarchicalClasses);
 					}
 				}
 				break;
 
 			case 'define_if_not_exists':
 				$oExistingNode = $oTargetParentNode->_FindChildNode($oSourceNode);
-				if (($oExistingNode == null) || ($oExistingNode->getAttribute('_alteration') == 'removed'))
-				{
+				if (($oExistingNode == null) || ($oExistingNode->getAttribute('_alteration') == 'removed')) {
 					// Same as 'define' below
-					$oTargetNode = $oTarget->ImportNode($oSourceNode, true);
+					$oTargetNode = $oTarget->importNode($oSourceNode, true);
 					$oTargetParentNode->AddChildNode($oTargetNode);
-				}
-				else
-				{
+				} else {
 					$oTargetNode = $oExistingNode;
 				}
 				$oTargetNode->setAttribute('_alteration', 'needed');
@@ -750,27 +732,26 @@ class ModelFactory
 
 			case 'define':
 				// New node - copy child nodes as well
-				$oTargetNode = $oTarget->ImportNode($oSourceNode, true);
+				$oTargetNode = $oTarget->importNode($oSourceNode, true);
 				$oTargetParentNode->AddChildNode($oTargetNode);
 				break;
 
 			case 'force':
 				// Force node - copy child nodes as well
-				$oTargetNode = $oTarget->ImportNode($oSourceNode, true);
+				$oTargetNode = $oTarget->importNode($oSourceNode, true);
 				$oTargetParentNode->SetChildNode($oTargetNode, null, true);
 				break;
 
 			case 'redefine':
 				// Replace the existing node by the given node - copy child nodes as well
-				$oTargetNode = $oTarget->ImportNode($oSourceNode, true);
+				$oTargetNode = $oTarget->importNode($oSourceNode, true);
 				$sSearchId = $oSourceNode->hasAttribute('_rename_from') ? $oSourceNode->getAttribute('_rename_from') : $oSourceNode->getAttribute('id');
 				$oTargetParentNode->RedefineChildNode($oTargetNode, $sSearchId);
 				break;
 
 			case 'delete_if_exists':
 				$oTargetNode = $oTargetParentNode->_FindChildNode($oSourceNode);
-				if (($oTargetNode !== null) && ($oTargetNode->getAttribute('_alteration') !== 'removed'))
-				{
+				if (($oTargetNode !== null) && ($oTargetNode->getAttribute('_alteration') !== 'removed')) {
 					// Delete the node if it actually exists and is not already marked as deleted
 					$oTargetNode->Delete();
 				}
@@ -780,14 +761,13 @@ class ModelFactory
 			case 'delete':
 				$oTargetNode = $oTargetParentNode->_FindChildNode($oSourceNode);
 				$sPath = MFDocument::GetItopNodePath($oSourceNode);
-				$iLine = $oSourceNode->getLineNo();
-				if ($oTargetNode == null)
-				{
+				$iLine = $this->GetXMLLineNumber($oSourceNode);
+
+				if ($oTargetNode == null) {
 					throw new MFException($sPath.' at line '.$iLine.": could not be deleted (not found)", MFException::COULD_NOT_BE_DELETED,
 						$iLine, $sPath);
 				}
-				if ($oTargetNode->getAttribute('_alteration') == 'removed')
-				{
+				if ($oTargetNode->getAttribute('_alteration') == 'removed') {
 					throw new MFException($sPath.' at line '.$iLine.": could not be deleted (already marked as deleted)",
 						MFException::ALREADY_DELETED, $iLine, $sPath);
 				}
@@ -796,19 +776,16 @@ class ModelFactory
 
 			default:
 				$sPath = MFDocument::GetItopNodePath($oSourceNode);
-				$iLine = $oSourceNode->getLineNo();
+				$iLine = $this->GetXMLLineNumber($oSourceNode);
 				throw new MFException($sPath.' at line '.$iLine.": unexpected value for attribute _delta: '".$sDeltaSpec."'",
 					MFException::INVALID_DELTA, $iLine, $sPath, $sDeltaSpec);
 		}
 
-		if ($oTargetNode)
-		{
-			if ($oSourceNode->hasAttribute('_rename_from'))
-			{
+		if ($oTargetNode) {
+			if ($oSourceNode->hasAttribute('_rename_from')) {
 				$oTargetNode->Rename($oSourceNode->getAttribute('id'));
 			}
-			if ($oTargetNode->hasAttribute('_delta'))
-			{
+			if ($oTargetNode->hasAttribute('_delta')) {
 				$oTargetNode->removeAttribute('_delta');
 			}
 		}
@@ -833,10 +810,10 @@ class ModelFactory
 			// For persistence in the cache
 			$oModuleNode = $this->oDOMDocument->CreateElement('module');
 			$oModuleNode->setAttribute('id', $oModule->GetId());
-			$oModuleNode->AppendChild($this->oDOMDocument->CreateElement('root_dir', $oModule->GetRootDir()));
-			$oModuleNode->AppendChild($this->oDOMDocument->CreateElement('label', $oModule->GetLabel()));
+			$oModuleNode->appendChild($this->oDOMDocument->CreateElement('root_dir', $oModule->GetRootDir()));
+			$oModuleNode->appendChild($this->oDOMDocument->CreateElement('label', $oModule->GetLabel()));
 
-			$this->oModules->AppendChild($oModuleNode);
+			$this->oModules->appendChild($oModuleNode);
 
 			foreach ($aDataModels as $sXmlFile)
 			{
@@ -940,12 +917,12 @@ class ModelFactory
 						$oXmlDict->setAttribute('id', $sLanguageCode);
 						$this->oDictionaries->AddChildNode($oXmlDict);
 						$oXmlEntries = $this->oDOMDocument->CreateElement('english_description', $aDictDefinition['english_description']);
-						$oXmlDict->AppendChild($oXmlEntries);
+						$oXmlDict->appendChild($oXmlEntries);
 						$oXmlEntries = $this->oDOMDocument->CreateElement('localized_description',
 							$aDictDefinition['localized_description']);
-						$oXmlDict->AppendChild($oXmlEntries);
+						$oXmlDict->appendChild($oXmlEntries);
 						$oXmlEntries = $this->oDOMDocument->CreateElement('entries');
-						$oXmlDict->AppendChild($oXmlEntries);
+						$oXmlDict->appendChild($oXmlEntries);
 					}
 					else
 					{
@@ -1352,7 +1329,7 @@ EOF
 	{
 		$oWKClass = $this->oDOMDocument->CreateElement('class');
 		$oWKClass->setAttribute('id', $sWellKnownParent);
-		$this->oClasses->AppendChild($oWKClass);
+		$this->oClasses->appendChild($oWKClass);
 
 		return $oWKClass;
 	}
@@ -1739,6 +1716,24 @@ EOF
 	public function GetRootDirs() {
 		return $this->aRootDirs;
 	}
+
+	/**
+	 * @param \DOMElement $oNode
+	 *
+	 * @return mixed
+	 * @Since 3.1.1
+	 */
+	public static function GetXMLLineNumber($oNode)
+	{
+		if (!is_null($oNode->previousSibling)) {
+			// Work around lib-xml bug
+			$iLine = $oNode->previousSibling->getLineNo();
+		} else {
+			$iLine = $oNode->getLineNo();
+		}
+
+		return $iLine;
+	}
 }
 
 /**
@@ -1875,12 +1870,12 @@ class MFElement extends Combodo\iTop\DesignElement
 		if (is_array($itemValue))
 		{
 			$oXmlItems = $oXmlDoc->CreateElement('items');
-			$oXMLNode->AppendChild($oXmlItems);
+			$oXMLNode->appendChild($oXmlItems);
 
 			foreach ($itemValue as $key => $item)
 			{
 				$oXmlItem = $oXmlDoc->CreateElement('item');
-				$oXmlItems->AppendChild($oXmlItem);
+				$oXmlItems->appendChild($oXmlItem);
 
 				if (is_string($key))
 				{
@@ -1892,7 +1887,7 @@ class MFElement extends Combodo\iTop\DesignElement
 		else
 		{
 			$oXmlText = $oXmlDoc->CreateTextNode((string)$itemValue);
-			$oXMLNode->AppendChild($oXmlText);
+			$oXMLNode->appendChild($oXmlText);
 		}
 	}
 
@@ -2063,10 +2058,9 @@ class MFElement extends Combodo\iTop\DesignElement
 		{
 			if ($oExisting->getAttribute('_alteration') != 'removed') {
 				$sPath = MFDocument::GetItopNodePath($oNode);
-				$iLine = $oNode->getLineNo();
+				$iLine = ModelFactory::GetXMLLineNumber($oNode);
 				$sExistingPath = MFDocument::GetItopNodePath($oExisting);
-				$iExistingLine = $oExisting->getLineNo();
-				
+				$iExistingLine = ModelFactory::GetXMLLineNumber($oExisting);
 				$sExceptionMessage = <<<EOF
 `{$sPath}` at line {$iLine} could not be added : already exists in `{$sExistingPath}` at line {$iExistingLine}
 EOF;
@@ -2107,14 +2101,14 @@ EOF;
 		if (!$oExisting)
 		{
 			$sPath = MFDocument::GetItopNodePath($this)."/".$oNode->tagName.(empty($sSearchId) ? '' : "[$sSearchId]");
-			$iLine = $oNode->getLineNo();
+			$iLine = ModelFactory::GetXMLLineNumber($oNode);
 			throw new MFException($sPath." at line $iLine: could not be modified (not found)", MFException::COULD_NOT_BE_MODIFIED_NOT_FOUND,
 				$sPath, $iLine);
 		}
 		$sPrevFlag = $oExisting->getAttribute('_alteration');
 		if ($sPrevFlag == 'removed') {
 			$sPath = MFDocument::GetItopNodePath($this)."/".$oNode->tagName.(empty($sSearchId) ? '' : "[$sSearchId]");
-			$iLine = $oNode->getLineNo();
+			$iLine = ModelFactory::GetXMLLineNumber($oNode);
 			throw new MFException($sPath." at line $iLine: could not be modified (marked as deleted)",
 				MFException::COULD_NOT_BE_MODIFIED_ALREADY_DELETED, $sPath, $iLine);
 		}
@@ -2277,11 +2271,12 @@ EOF;
 			{
 				if ($bMustExist)
 				{
-					throw new Exception(MFDocument::GetItopNodePath($this).' at line '.$this->getLineNo().": could not be found (marked as deleted)");
+					$iLine = ModelFactory::GetXMLLineNumber($this);
+					throw new Exception(MFDocument::GetItopNodePath($this).' at line '.$iLine.": could not be found (marked as deleted)");
 				}
-				// Beware: ImportNode(xxx, false) DOES NOT copy the node's attribute on *some* PHP versions (<5.2.17)
+				// Beware: importNode(xxx, false) DOES NOT copy the node's attribute on *some* PHP versions (<5.2.17)
 				// So use this workaround to import a node and its attributes on *any* PHP version
-				$oTargetNode = $oContainer->ownerDocument->ImportNode($this->cloneNode(false), true);
+				$oTargetNode = $oContainer->ownerDocument->importNode($this->cloneNode(false), true);
 				$oContainer->appendChild($oTargetNode);
 			}
 		}
@@ -2291,13 +2286,14 @@ EOF;
 			{
 				//echo "Dumping parent node<br/>\n";
 				//$oContainer->Dump();
-				throw new Exception(MFDocument::GetItopNodePath($this).' at line '.$this->getLineNo().": could not be found");
+				$iLine = ModelFactory::GetXMLLineNumber($this);
+				throw new Exception(MFDocument::GetItopNodePath($this).' at line '.$iLine.": could not be found");
 			}
 			if (!$bIfExists)
 			{
-				// Beware: ImportNode(xxx, false) DOES NOT copy the node's attribute on *some* PHP versions (<5.2.17)
+				// Beware: importNode(xxx, false) DOES NOT copy the node's attribute on *some* PHP versions (<5.2.17)
 				// So use this workaround to import a node and its attributes on *any* PHP version
-				$oTargetNode = $oContainer->ownerDocument->ImportNode($this->cloneNode(false), true);
+				$oTargetNode = $oContainer->ownerDocument->importNode($this->cloneNode(false), true);
 				$oContainer->appendChild($oTargetNode);
 			}
 		}

@@ -95,6 +95,169 @@ class ModelFactoryTest extends ItopTestCase
 	}
 
 	/**
+	 * @dataProvider LoadDeltaProvider
+	 * @param $sDeltaXML
+	 * @param $bHierarchicalClasses
+	 * @param $sExpectedXML
+	 *
+	 * @return void
+	 * @throws \DOMFormatException
+	 * @throws \MFException
+	 */
+	public function testLoadDelta($sDeltaXML, $bHierarchicalClasses, $sExpectedXML)
+	{
+		$oFactory = new ModelFactory([]);
+		$oFactoryDocument = $this->GetNonPublicProperty($oFactory, 'oDOMDocument');
+		$oDocument = new MFDocument();
+		$oDocument->loadXML($sDeltaXML);
+		/* @var MFElement $oDeltaRoot */
+		$oDeltaRoot = $oDocument->firstChild;
+		$oFactory->LoadDelta($oDeltaRoot, $oFactoryDocument, $bHierarchicalClasses);
+		$this->AssertEqualModels($sExpectedXML, $oFactory);
+	}
+
+	public function LoadDeltaProvider()
+	{
+		return [
+			'empty delta' => ['<itop_design></itop_design>', true, '<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+  <loaded_modules/>
+  <classes>
+    <class id="DBObject"/>
+    <class id="CMDBObject"/>
+    <class id="cmdbAbstractObject"/>
+  </classes>
+  <dictionaries/>
+  <menus/>
+  <meta/>
+  <events/>
+</itop_design>'],
+
+			'Add a class in hierarchy' => [
+				'
+<itop_design>
+	<classes>
+		<class id="MyClass" _delta="define">
+            <parent>cmdbAbstractObject</parent>
+		</class>
+	</classes>
+</itop_design>',
+				true,
+				'<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+  <loaded_modules/>
+  <classes>
+    <class id="DBObject"/>
+    <class id="CMDBObject"/>
+    <class id="cmdbAbstractObject">
+      <class id="MyClass" _alteration="added">
+        <parent>cmdbAbstractObject</parent>
+      </class>
+    </class>
+  </classes>
+  <dictionaries/>
+  <menus/>
+  <meta/>
+  <events/>
+</itop_design>'
+			],
+
+			'Add a class in the flat' => [
+				'
+<itop_design>
+	<classes>
+		<class id="MyClass" _delta="define">
+            <parent>cmdbAbstractObject</parent>
+		</class>
+	</classes>
+</itop_design>',
+				false,
+				'<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+  <loaded_modules/>
+  <classes>
+    <class id="DBObject"/>
+    <class id="CMDBObject"/>
+    <class id="cmdbAbstractObject"/>
+    <class id="MyClass" _alteration="added">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+  </classes>
+  <dictionaries/>
+  <menus/>
+  <meta/>
+  <events/>
+</itop_design>'
+			],
+
+			'Add a sub class in hierarchy' => [
+				'
+<itop_design>
+	<classes>
+		<class id="MyClass" _delta="define">
+            <parent>cmdbAbstractObject</parent>
+            <class id="MySubClass">
+              <parent>MyClass</parent>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				true,
+				'<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+  <loaded_modules/>
+  <classes>
+    <class id="DBObject"/>
+    <class id="CMDBObject"/>
+    <class id="cmdbAbstractObject">
+      <class id="MyClass" _alteration="added">
+        <parent>cmdbAbstractObject</parent>
+        <class id="MySubClass">
+          <parent>MyClass</parent>
+        </class>
+	  </class>
+    </class>
+  </classes>
+  <dictionaries/>
+  <menus/>
+  <meta/>
+  <events/>
+</itop_design>'
+			],
+
+			'Add a sub class in the flat' => [
+				'
+<itop_design>
+	<classes>
+		<class id="MyClass" _delta="define">
+            <parent>cmdbAbstractObject</parent>
+            <class id="MySubClass">
+              <parent>MyClass</parent>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				false,
+				'<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+  <loaded_modules/>
+  <classes>
+    <class id="DBObject"/>
+    <class id="CMDBObject"/>
+    <class id="cmdbAbstractObject"/>
+    <class id="MyClass" _alteration="added">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+	<class id="MySubClass">
+	  <parent>MyClass</parent>
+	</class>
+  </classes>
+  <dictionaries/>
+  <menus/>
+  <meta/>
+  <events/>
+</itop_design>'
+			],
+
+		];
+	}
+
+	/**
 	 * @dataProvider providerDeltas
 	 * @covers ModelFactory::LoadDelta
 	 * @covers ModelFactory::ApplyChanges
