@@ -160,7 +160,7 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>'
 			],
 
-			'Add a class in the flat' => [
+			'Add a class and flatten' => [
 				'
 <itop_design>
 	<classes>
@@ -221,7 +221,7 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>'
 			],
 
-			'Add a sub class in the flat' => [
+			'Add a sub class and flatten' => [
 				'
 <itop_design>
 	<classes>
