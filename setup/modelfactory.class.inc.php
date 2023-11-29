@@ -652,7 +652,224 @@ class ModelFactory
 	 * @throws \DOMFormatException
 	 * @throws \Exception
 	 */
-	public function LoadDelta($oSourceNode, $oTargetParentNode, bool $bHierarchicalClasses = true)
+	public function LoadDelta($oSourceNode, $oTargetParentNode)
+	{
+		if (!$oSourceNode instanceof DOMElement) {
+			return;
+		}
+		if ($oTargetParentNode instanceof MFDocument) {
+			$oTargetDocument = $oTargetParentNode;
+		} else {
+			$oTargetDocument = $oTargetParentNode->ownerDocument;
+		}
+
+		if ($oSourceNode->tagName === 'itop_design') {
+			$oSourceNode = $this->FlattenClassesInDelta($oSourceNode);
+		}
+
+		$this->LoadFlattenDelta($oSourceNode, $oTargetDocument, $oTargetParentNode);
+	}
+
+	private function FlattenClassesInDelta(MFElement $oRootNode): MFElement
+	{
+		$oDOMDocument = $oRootNode->ownerDocument;
+
+		foreach ($oRootNode->childNodes as $oFirstLevelChild) {
+			if ($oFirstLevelChild instanceof DOMElement) {
+				if ($oFirstLevelChild->tagName === 'classes') {
+					// Flatten <classes>
+					$oXPath = new DOMXPath($oDOMDocument);
+					$sXPath = './class';
+					foreach ($oFirstLevelChild->childNodes as $oFirstLevelClassNode) {
+						if (!$oFirstLevelClassNode instanceof MFElement || $oFirstLevelClassNode->tagName !== 'class') {
+							continue;
+						}
+						$sDeltaSpec = $oFirstLevelClassNode->getAttribute('_delta');
+
+						// Find all <class> nodes and copy them under the target <classes> node
+						$oSubClassNodes = $oXPath->query($sXPath, $oFirstLevelClassNode);
+						foreach ($oSubClassNodes as $oSubClassNode) {
+							// Add subclasses after the corresponding parent class
+							/** @var \MFElement $oSubClassNode */
+							$oSubClassNode->parentNode->removeChild($oSubClassNode);
+							$this->PropagateDeltaSpecsOnSubClass($oSubClassNode, $sDeltaSpec);
+							$oFirstLevelChild->appendChild($oSubClassNode);
+						}
+					}
+				}
+			}
+		}
+
+		return $oRootNode;
+	}
+
+	/**
+	 * @param \MFElement $oSubClassNode
+	 * @param string $sDeltaSpec
+	 *
+	 * @return void
+	 */
+	public function PropagateDeltaSpecsOnSubClass(MFElement $oSubClassNode, string $sDeltaSpec): void
+	{
+		switch ($sDeltaSpec) {
+			case 'define':
+				$oSubClassNode->setAttribute('_delta', $sDeltaSpec);
+				break;
+		}
+	}
+
+	/**
+	 * @param \MFElement $oSourceNode
+	 * @param \MFDocument $oTargetDocument
+	 * @param \MFDocument|\MFElement $oTargetParentNode
+	 *
+	 * @return void
+	 * @throws \DOMFormatException
+	 * @throws \MFException
+	 */
+	private function LoadFlattenDelta($oSourceNode, MFDocument $oTargetDocument, $oTargetParentNode)
+	{
+		if (!$oSourceNode instanceof DOMElement) {
+			return;
+		}
+
+		$sDeltaSpec = $oSourceNode->getAttribute('_delta');
+		if (($oSourceNode->tagName === 'class') && ($oSourceNode->parentNode->tagName === 'classes') && ($oSourceNode->parentNode->parentNode->tagName === 'itop_design')) {
+			switch ($sDeltaSpec) {
+				case 'delete_hierarchy':
+					// Delete the nodes of all the subclasses (leaf first)
+					$this->DeleteSubClasses($oTargetParentNode->_FindChildNode($oSourceNode));
+					$sDeltaSpec = 'delete';
+					break;
+			}
+		}
+
+		// IMPORTANT: In case of a new flag value, mind to update the iTopDesignFormat methods
+		switch ($sDeltaSpec) {
+			case 'if_exists':
+			case 'must_exist':
+			case 'merge':
+			case '':
+				$bMustExist = ($sDeltaSpec == 'must_exist');
+				$bIfExists = ($sDeltaSpec == 'if_exists');
+				$sSearchId = $oSourceNode->hasAttribute('_rename_from') ? $oSourceNode->getAttribute('_rename_from') : $oSourceNode->getAttribute('id');
+				$oTargetNode = $oSourceNode->MergeInto($oTargetParentNode, $sSearchId, $bMustExist, $bIfExists);
+				if ($oTargetNode) {
+					foreach ($oSourceNode->childNodes as $oSourceChild) {
+						// Continue deeper
+						$this->LoadFlattenDelta($oSourceChild, $oTargetDocument, $oTargetNode);
+					}
+				}
+				break;
+
+			case 'define_if_not_exists':
+				$oExistingNode = $oTargetParentNode->_FindChildNode($oSourceNode);
+				if (($oExistingNode == null) || ($oExistingNode->getAttribute('_alteration') == 'removed')) {
+					// Same as 'define' below
+					$oTargetNode = $oTargetDocument->importNode($oSourceNode, true);
+					$oTargetParentNode->AddChildNode($oTargetNode);
+				} else {
+					$oTargetNode = $oExistingNode;
+				}
+				$oTargetNode->setAttribute('_alteration', 'needed');
+				break;
+
+			case 'define':
+				// New node - copy child nodes as well
+				$oTargetNode = $oTargetDocument->importNode($oSourceNode, true);
+				$oTargetParentNode->AddChildNode($oTargetNode);
+				break;
+
+			case 'force':
+				// Force node - copy child nodes as well
+				$oTargetNode = $oTargetDocument->importNode($oSourceNode, true);
+				$oTargetParentNode->SetChildNode($oTargetNode, null, true);
+				break;
+
+			case 'redefine':
+				// Replace the existing node by the given node - copy child nodes as well
+				$oTargetNode = $oTargetDocument->importNode($oSourceNode, true);
+				$sSearchId = $oSourceNode->hasAttribute('_rename_from') ? $oSourceNode->getAttribute('_rename_from') : $oSourceNode->getAttribute('id');
+				$oTargetParentNode->RedefineChildNode($oTargetNode, $sSearchId);
+				break;
+
+			case 'delete_if_exists':
+				$oTargetNode = $oTargetParentNode->_FindChildNode($oSourceNode);
+				if (($oTargetNode !== null) && ($oTargetNode->getAttribute('_alteration') !== 'removed')) {
+					// Delete the node if it actually exists and is not already marked as deleted
+					$oTargetNode->Delete();
+				}
+				// otherwise fail silently
+				break;
+
+			case 'delete':
+				$oTargetNode = $oTargetParentNode->_FindChildNode($oSourceNode);
+				$sPath = MFDocument::GetItopNodePath($oSourceNode);
+				$iLine = $this->GetXMLLineNumber($oSourceNode);
+
+				if ($oTargetNode == null) {
+					throw new MFException($sPath.' at line '.$iLine.": could not be deleted (not found)", MFException::COULD_NOT_BE_DELETED,
+						$iLine, $sPath);
+				}
+				if ($oTargetNode->getAttribute('_alteration') == 'removed') {
+					throw new MFException($sPath.' at line '.$iLine.": could not be deleted (already marked as deleted)",
+						MFException::ALREADY_DELETED, $iLine, $sPath);
+				}
+				$oTargetNode->Delete();
+				break;
+
+			case 'ignore':
+				$oTargetNode = null;
+				break;
+
+			default:
+				$sPath = MFDocument::GetItopNodePath($oSourceNode);
+				$iLine = $this->GetXMLLineNumber($oSourceNode);
+				throw new MFException($sPath.' at line '.$iLine.": unexpected value for attribute _delta: '".$sDeltaSpec."'",
+					MFException::INVALID_DELTA, $iLine, $sPath, $sDeltaSpec);
+		}
+
+		if ($oTargetNode) {
+			if ($oSourceNode->hasAttribute('_rename_from')) {
+				$oTargetNode->Rename($oSourceNode->getAttribute('id'));
+			}
+			if ($oTargetNode->hasAttribute('_delta')) {
+				$oTargetNode->removeAttribute('_delta');
+			}
+		}
+	}
+
+	private function DeleteSubClasses($oClassNode, $bIsRoot = true)
+	{
+		if (!$oClassNode instanceof MFElement) {
+			return;
+		}
+
+		$sClassId = $oClassNode->getAttribute('id');
+		/** @var \MFElement $oClassesNode */
+		$oClassesNode = $this->oDOMDocument->GetNodes("/itop_design/classes")->item(0);
+		$oSubClassNodes = $this->oDOMDocument->GetNodes("/itop_design/classes/class[parent/text()[. = '$sClassId']]");
+		foreach($oSubClassNodes as $oSubClassNode) {
+			// Put the subclass before the parent classes to delete in reverse order
+			/** @var \MFElement $oSubClassNode */
+			$this->DeleteSubClasses($oSubClassNode, false);
+		}
+		if (!$bIsRoot) {
+			$oClassNode->Delete();
+		}
+	}
+
+	/**
+	 * Legacy version of LoadDelta for tests
+	 *
+	 * @param \MFElement $oSourceNode
+	 * @param \MFDocument|\MFElement $oTargetParentNode
+	 *
+	 * @throws \MFException
+	 * @throws \DOMFormatException
+	 * @throws \Exception
+	 */
+	public function LoadDeltaLegacy($oSourceNode, $oTargetParentNode)
 	{
 		if (!$oSourceNode instanceof DOMElement) {
 			return;
@@ -665,7 +882,7 @@ class ModelFactory
 		}
 
 		$sDeltaSpec = $oSourceNode->getAttribute('_delta');
-		if ($bHierarchicalClasses && ($oSourceNode->tagName === 'class') && ($oSourceNode->parentNode->tagName === 'classes') && ($oSourceNode->parentNode->parentNode->tagName === 'itop_design')) {
+		if (($oSourceNode->tagName === 'class') && ($oSourceNode->parentNode->tagName === 'classes') && ($oSourceNode->parentNode->parentNode->tagName === 'itop_design')) {
 			$sParentId = $oSourceNode->GetChildText('parent');
 			if (($sDeltaSpec == 'define') || ($sDeltaSpec == 'force')) {
 				// This tag is organized in hierarchy: determine the real parent node (as a subnode of the current node)
@@ -685,7 +902,7 @@ class ModelFactory
 					} else {
 						$sPath = MFDocument::GetItopNodePath($oSourceNode);
 						$iLine = $this->GetXMLLineNumber($oSourceNode);
-						throw new MFException($sPath.' at line '.$iLine.": could not be found", MFException::NOT_FOUND, $iLine, $sPath);
+						throw new MFException($sPath.' at line '.$iLine.': could not be found', MFException::NOT_FOUND, $iLine, $sPath);
 					}
 				} else {
 					$oTargetParentNode = $oTargetNode->parentNode;
@@ -713,7 +930,7 @@ class ModelFactory
 				if ($oTargetNode) {
 					foreach ($oSourceNode->childNodes as $oSourceChild) {
 						// Continue deeper
-						$this->LoadDelta($oSourceChild, $oTargetNode, $bHierarchicalClasses);
+						$this->LoadDelta($oSourceChild, $oTargetNode);
 					}
 				}
 				break;
@@ -764,11 +981,11 @@ class ModelFactory
 				$iLine = $this->GetXMLLineNumber($oSourceNode);
 
 				if ($oTargetNode == null) {
-					throw new MFException($sPath.' at line '.$iLine.": could not be deleted (not found)", MFException::COULD_NOT_BE_DELETED,
+					throw new MFException($sPath.' at line '.$iLine.': could not be deleted (not found)', MFException::COULD_NOT_BE_DELETED,
 						$iLine, $sPath);
 				}
 				if ($oTargetNode->getAttribute('_alteration') == 'removed') {
-					throw new MFException($sPath.' at line '.$iLine.": could not be deleted (already marked as deleted)",
+					throw new MFException($sPath.' at line '.$iLine.': could not be deleted (already marked as deleted)',
 						MFException::ALREADY_DELETED, $iLine, $sPath);
 				}
 				$oTargetNode->Delete();
@@ -1935,7 +2152,6 @@ class MFElement extends Combodo\iTop\DesignElement
 	 */
 	public static function _FindNode(DOMNode $oParent, MFElement $oRefNode, $sSearchId = null)
 	{
-		$oRes = null;
 		if ($oParent instanceof DOMDocument)
 		{
 			$oDoc = $oParent->firstChild->ownerDocument;
