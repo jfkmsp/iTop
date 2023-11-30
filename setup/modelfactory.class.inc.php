@@ -673,28 +673,21 @@ class ModelFactory
 	private function FlattenClassesInDelta(MFElement $oRootNode): MFElement
 	{
 		$oDOMDocument = $oRootNode->ownerDocument;
+		$oXPath = new DOMXPath($oDOMDocument);
+		$sXPath = './/class';
 
 		foreach ($oRootNode->childNodes as $oFirstLevelChild) {
-			if ($oFirstLevelChild instanceof DOMElement) {
+			if ($oFirstLevelChild instanceof MFElement) {
 				if ($oFirstLevelChild->tagName === 'classes') {
-					// Flatten <classes>
-					$oXPath = new DOMXPath($oDOMDocument);
-					$sXPath = './class';
-					foreach ($oFirstLevelChild->childNodes as $oFirstLevelClassNode) {
-						if (!$oFirstLevelClassNode instanceof MFElement || $oFirstLevelClassNode->tagName !== 'class') {
-							continue;
-						}
-						$sDeltaSpec = $oFirstLevelClassNode->getAttribute('_delta');
-
-						// Find all <class> nodes and copy them under the target <classes> node
-						$oSubClassNodes = $oXPath->query($sXPath, $oFirstLevelClassNode);
-						foreach ($oSubClassNodes as $oSubClassNode) {
-							// Add subclasses after the corresponding parent class
-							/** @var \MFElement $oSubClassNode */
-							$oSubClassNode->parentNode->removeChild($oSubClassNode);
-							$this->PropagateDeltaSpecsOnSubClass($oSubClassNode, $sDeltaSpec);
-							$oFirstLevelChild->appendChild($oSubClassNode);
-						}
+					$oClassCollectionNode = $oFirstLevelChild;
+					// Find all <class> nodes and copy them under the target <classes> node
+					$oSubClassNodes = $oXPath->query($sXPath, $oClassCollectionNode);
+					foreach ($oSubClassNodes as $oSubClassNode) {
+						/** @var \MFElement $oSubClassNode */
+						$this->SpecifyDeltaSpecsOnSubClass($oSubClassNode, $oClassCollectionNode);
+						// Move (Sub)Classes from parent tree to the end of <classes>
+						$oSubClassNode->parentNode->removeChild($oSubClassNode);
+						$oClassCollectionNode->appendChild($oSubClassNode);
 					}
 				}
 			}
@@ -705,16 +698,39 @@ class ModelFactory
 
 	/**
 	 * @param \MFElement $oSubClassNode
-	 * @param string $sDeltaSpec
+	 * @param \MFElement $oClassCollectionNode
 	 *
 	 * @return void
 	 */
-	public function PropagateDeltaSpecsOnSubClass(MFElement $oSubClassNode, string $sDeltaSpec): void
+	public function SpecifyDeltaSpecsOnSubClass(MFElement $oSubClassNode, MFElement $oClassCollectionNode): void
 	{
-		switch ($sDeltaSpec) {
-			case 'define':
-				$oSubClassNode->setAttribute('_delta', $sDeltaSpec);
+		$sParentDeltaSpec = $oSubClassNode->parentNode->getAttribute('_delta');
+		$sCurrentDeltaSpec = $oSubClassNode->getAttribute('_delta');
+		switch ($sParentDeltaSpec) {
+			case '':
+				switch ($sCurrentDeltaSpec) {
+					case 'force':
+						$oDeleteNode = $oSubClassNode->cloneNode();
+						$oDeleteNode->setAttribute('_delta', 'delete_if_exists_hierarchy');
+						$oClassCollectionNode->appendChild($oDeleteNode);
+						break;
+					case 'redefine':
+						$oDeleteNode = $oSubClassNode->cloneNode();
+						$oDeleteNode->setAttribute('_delta', 'delete_hierarchy');
+						$oClassCollectionNode->appendChild($oDeleteNode);
+						// TODO specify "safe mode" for GetDelta()
+						$oSubClassNode->setAttribute('_delta', 'define');
+						break;
+				}
 				break;
+			case 'define':
+				// TODO specify "safe mode" for GetDelta()
+				$oSubClassNode->setAttribute('_delta', 'define');
+				break;
+			case 'force':
+				$oSubClassNode->setAttribute('_delta', 'force');
+				break;
+
 		}
 	}
 
@@ -736,8 +752,13 @@ class ModelFactory
 		$sDeltaSpec = $oSourceNode->getAttribute('_delta');
 		if (($oSourceNode->tagName === 'class') && ($oSourceNode->parentNode->tagName === 'classes') && ($oSourceNode->parentNode->parentNode->tagName === 'itop_design')) {
 			switch ($sDeltaSpec) {
+				case 'delete_if_exists_hierarchy':
+					// Delete the nodes of all the subclasses
+					$this->DeleteSubClasses($oTargetParentNode->_FindChildNode($oSourceNode));
+					$sDeltaSpec = 'delete_if_exists';
+					break;
 				case 'delete_hierarchy':
-					// Delete the nodes of all the subclasses (leaf first)
+					// Delete the nodes of all the subclasses
 					$this->DeleteSubClasses($oTargetParentNode->_FindChildNode($oSourceNode));
 					$sDeltaSpec = 'delete';
 					break;

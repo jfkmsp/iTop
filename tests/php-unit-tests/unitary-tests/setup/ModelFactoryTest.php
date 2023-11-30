@@ -120,22 +120,22 @@ class ModelFactoryTest extends ItopTestCase
 		return [
 			'Empty delta' => [
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 </itop_design>',
-				'sExpectedXML' => '<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+				'sExpectedXML' => '<itop_design version="3.1">
 </itop_design>'
 			],
 
-			'Flat collection' => [
+			'Flat delete_hierarchy' => [
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1_2" _delta="delete_hierarchy"/>
 		<class id="C_1_1" _delta="delete_hierarchy"/>
 		<class id="C_1" _delta="delete_hierarchy"/>
 	</classes>
 </itop_design>',
-				'sExpectedXML' => '<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+				'sExpectedXML' => '<itop_design version="3.1">
 	<classes>
 		<class id="C_1_2" _delta="delete_hierarchy"/>
 		<class id="C_1_1" _delta="delete_hierarchy"/>
@@ -144,22 +144,99 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>'
 			],
 
-			'Simple hierarchy' => [
+			'flat define root' => [
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1" _delta="define">
+			<parent>cmdbAbstractObject</parent>
+		</class>
+		<class id="C_2" _delta="define">
+			<parent>cmdbAbstractObject</parent>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1" _delta="define">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_2" _delta="define">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+  </classes>
+</itop_design>'
+			],
+
+			'flat force root' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="force">
+			<parent>cmdbAbstractObject</parent>
+		</class>
+		<class id="C_2" _delta="force">
+			<parent>cmdbAbstractObject</parent>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1" _delta="force">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_2" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_2" _delta="force">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+  </classes>
+</itop_design>'
+			],
+
+			'flat redefine root' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="redefine">
+			<parent>cmdbAbstractObject</parent>
+		</class>
+		<class id="C_2" _delta="redefine">
+			<parent>cmdbAbstractObject</parent>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1" _delta="delete_hierarchy"/>
+    <class id="C_1" _delta="define">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_2" _delta="delete_hierarchy"/>
+    <class id="C_2" _delta="define">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+  </classes>
+</itop_design>'
+			],
+
+			'Simple hierarchy define root' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="define">
+			<parent>cmdbAbstractObject</parent>
 			<class id="C_1_1">
 				<parent>C_1</parent>
 			</class>
 		</class>
 	</classes>
 </itop_design>',
-				'sExpectedXML' => '<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+				'sExpectedXML' => '<itop_design version="3.1">
   <classes>
     <class id="C_1" _delta="define">
-			
-		</class>
+		<parent>cmdbAbstractObject</parent>
+	</class>
     <class id="C_1_1" _delta="define">
       <parent>C_1</parent>
     </class>
@@ -167,11 +244,52 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>'
 			],
 
-			'Complex hierarchy' => [
+			'Complex hierarchy delete_hierarchy' => [
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1">
+			<parent>cmdbAbstractObject</parent>
+			<class id="C_1_1">
+				<parent>C_1</parent>
+				<class id="C_1_1_1">
+					<parent>C_1_1</parent>
+					<class id="C_1_1_1_1" _delta="delete_hierarchy"/>
+				</class>
+			</class>
+			<class id="C_1_2">
+				<parent>C_1</parent>
+				<class id="C_1_2_1" _delta="delete_hierarchy"/>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_1_1">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_1_1">
+      <parent>C_1_1</parent>
+    </class>
+    <class id="C_1_1_1_1" _delta="delete_hierarchy"/>
+    <class id="C_1_2">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_2_1" _delta="delete_hierarchy"/>
+  </classes>
+</itop_design>'
+			],
+
+			'Complex hierarchy define root' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1" _delta="define">
+			<parent>cmdbAbstractObject</parent>
 			<class id="C_1_1">
 				<parent>C_1</parent>
 				<class id="C_1_1_1">
@@ -190,26 +308,271 @@ class ModelFactoryTest extends ItopTestCase
 		</class>
 	</classes>
 </itop_design>',
-				'sExpectedXML' => '<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+				'sExpectedXML' => '<itop_design version="3.1">
   <classes>
     <class id="C_1" _delta="define">
-			
-			
-		</class>
+		<parent>cmdbAbstractObject</parent>
+	</class>
     <class id="C_1_1" _delta="define">
-      <parent>C_1</parent>
-    </class>
-    <class id="C_1_2" _delta="define">
       <parent>C_1</parent>
     </class>
     <class id="C_1_1_1" _delta="define">
       <parent>C_1_1</parent>
     </class>
+    <class id="C_1_1_1_1" _delta="define">
+      <parent>C_1_1_1</parent>
+    </class>
+    <class id="C_1_2" _delta="define">
+      <parent>C_1</parent>
+    </class>
     <class id="C_1_2_1" _delta="define">
       <parent>C_1_2</parent>
     </class>
+  </classes>
+</itop_design>'
+			],
+
+			'Complex hierarchy define' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1">
+			<parent>cmdbAbstractObject</parent>
+			<class id="C_1_1" _delta="define">
+				<parent>C_1</parent>
+				<class id="C_1_1_1">
+					<parent>C_1_1</parent>
+					<class id="C_1_1_1_1">
+						<parent>C_1_1_1</parent>
+					</class>
+				</class>
+			</class>
+			<class id="C_1_2">
+				<parent>C_1</parent>
+				<class id="C_1_2_1" _delta="define">
+					<parent>C_1_2</parent>
+				</class>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_1_1" _delta="define">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_1_1" _delta="define">
+      <parent>C_1_1</parent>
+    </class>
     <class id="C_1_1_1_1" _delta="define">
       <parent>C_1_1_1</parent>
+    </class>
+    <class id="C_1_2">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_2_1" _delta="define">
+      <parent>C_1_2</parent>
+    </class>
+  </classes>
+</itop_design>'
+			],
+
+			'Complex hierarchy force' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1">
+			<parent>cmdbAbstractObject</parent>
+			<class id="C_1_1" _delta="force">
+				<parent>C_1</parent>
+				<class id="C_1_1_1">
+					<parent>C_1_1</parent>
+					<class id="C_1_1_1_1">
+						<parent>C_1_1_1</parent>
+					</class>
+				</class>
+			</class>
+			<class id="C_1_2">
+				<parent>C_1</parent>
+				<class id="C_1_2_1" _delta="force">
+					<parent>C_1_2</parent>
+				</class>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_1_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1_1" _delta="force">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_1_1" _delta="force">
+      <parent>C_1_1</parent>
+    </class>
+    <class id="C_1_1_1_1" _delta="force">
+      <parent>C_1_1_1</parent>
+    </class>
+    <class id="C_1_2">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_2_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1_2_1" _delta="force">
+      <parent>C_1_2</parent>
+    </class>
+  </classes>
+</itop_design>'
+			],
+
+			'Complex hierarchy force root' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="force">
+			<parent>cmdbAbstractObject</parent>
+			<class id="C_1_1">
+				<parent>C_1</parent>
+				<class id="C_1_1_1">
+					<parent>C_1_1</parent>
+					<class id="C_1_1_1_1">
+						<parent>C_1_1_1</parent>
+					</class>
+				</class>
+			</class>
+			<class id="C_1_2">
+				<parent>C_1</parent>
+				<class id="C_1_2_1">
+					<parent>C_1_2</parent>
+				</class>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1" _delta="force">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_1_1" _delta="force">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_1_1" _delta="force">
+      <parent>C_1_1</parent>
+    </class>
+    <class id="C_1_1_1_1" _delta="force">
+      <parent>C_1_1_1</parent>
+    </class>
+    <class id="C_1_2" _delta="force">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_2_1" _delta="force">
+      <parent>C_1_2</parent>
+    </class>
+  </classes>
+</itop_design>'
+			],
+
+			'Complex hierarchy redefine' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1">
+			<parent>cmdbAbstractObject</parent>
+			<class id="C_1_1" _delta="redefine">
+				<parent>C_1</parent>
+				<class id="C_1_1_1">
+					<parent>C_1_1</parent>
+					<class id="C_1_1_1_1">
+						<parent>C_1_1_1</parent>
+					</class>
+				</class>
+			</class>
+			<class id="C_1_2">
+				<parent>C_1</parent>
+				<class id="C_1_2_1" _delta="redefine">
+					<parent>C_1_2</parent>
+				</class>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_1_1" _delta="delete_hierarchy"/>
+    <class id="C_1_1" _delta="define">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_1_1" _delta="define">
+      <parent>C_1_1</parent>
+    </class>
+    <class id="C_1_1_1_1" _delta="define">
+      <parent>C_1_1_1</parent>
+    </class>
+    <class id="C_1_2">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_2_1" _delta="delete_hierarchy"/>
+    <class id="C_1_2_1" _delta="define">
+      <parent>C_1_2</parent>
+    </class>
+  </classes>
+</itop_design>'
+			],
+
+			'Complex hierarchy redefine root' => [
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="redefine">
+			<parent>cmdbAbstractObject</parent>
+			<class id="C_1_1">
+				<parent>C_1</parent>
+				<class id="C_1_1_1">
+					<parent>C_1_1</parent>
+					<class id="C_1_1_1_1">
+						<parent>C_1_1_1</parent>
+					</class>
+				</class>
+			</class>
+			<class id="C_1_2">
+				<parent>C_1</parent>
+				<class id="C_1_2_1">
+					<parent>C_1_2</parent>
+				</class>
+			</class>
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design version="3.1">
+  <classes>
+    <class id="C_1" _delta="delete_hierarchy"/>
+    <class id="C_1" _delta="define">
+		<parent>cmdbAbstractObject</parent>
+	</class>
+    <class id="C_1_1" _delta="define">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_1_1" _delta="define">
+      <parent>C_1_1</parent>
+    </class>
+    <class id="C_1_1_1_1" _delta="define">
+      <parent>C_1_1_1</parent>
+    </class>
+    <class id="C_1_2" _delta="define">
+      <parent>C_1</parent>
+    </class>
+    <class id="C_1_2_1" _delta="define">
+      <parent>C_1_2</parent>
     </class>
   </classes>
 </itop_design>'
@@ -268,7 +631,7 @@ class ModelFactoryTest extends ItopTestCase
   </classes>
 </itop_design>',
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1" _delta="define">
             <parent>cmdbAbstractObject</parent>
@@ -293,7 +656,7 @@ class ModelFactoryTest extends ItopTestCase
   </classes>
 </itop_design>',
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1" _delta="define">
             <parent>cmdbAbstractObject</parent>
@@ -327,7 +690,7 @@ class ModelFactoryTest extends ItopTestCase
   </classes>
 </itop_design>',
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1" _delta="delete">
 		</class>
@@ -352,7 +715,7 @@ class ModelFactoryTest extends ItopTestCase
   </classes>
 </itop_design>',
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1" _delta="delete_hierarchy">
 		</class>
@@ -380,7 +743,7 @@ class ModelFactoryTest extends ItopTestCase
   </classes>
 </itop_design>',
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1" _delta="delete_hierarchy"/>
 	</classes>
@@ -393,6 +756,7 @@ class ModelFactoryTest extends ItopTestCase
   </classes>
 </itop_design>'
 			],
+
 			'Delete hierarchically a class and subclass already deleted' => [
 				'sInitialXML' => '
 <itop_design>
@@ -413,7 +777,7 @@ class ModelFactoryTest extends ItopTestCase
   </classes>
 </itop_design>',
 				'sDeltaXML' => '
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design version="3.1">
 	<classes>
 		<class id="C_1_2" _delta="delete_hierarchy"/>
 		<class id="C_1" _delta="delete_hierarchy"/>
@@ -426,6 +790,140 @@ class ModelFactoryTest extends ItopTestCase
     <class id="C_1_1" _alteration="removed"/>
     <class id="C_1_2" _alteration="removed"/>
     <class id="C_1_2_1" _alteration="removed"/>
+  </classes>
+</itop_design>'
+			],
+
+			'Delete if exist hierarchically an existing class' => [
+				'sInitialXML' => '
+<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+  </classes>
+</itop_design>',
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="delete_if_exists_hierarchy">
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1" _alteration="removed"/>
+  </classes>
+</itop_design>'
+			],
+
+			'Delete if exist hierarchically an non existing class' => [
+				'sInitialXML' => '
+<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_2">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+  </classes>
+</itop_design>',
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="delete_if_exists_hierarchy">
+		</class>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_2">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+  </classes>
+</itop_design>'
+			],
+
+			'Delete if exist hierarchically a removed class' => [
+				'sInitialXML' => '
+<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+  </classes>
+</itop_design>',
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="delete"/>
+		<class id="C_1" _delta="delete_if_exists_hierarchy"/>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1" _alteration="removed"/>
+  </classes>
+</itop_design>'
+			],
+
+			'Delete if exist hierarchically an existing class and subclass' => [
+				'sInitialXML' => '
+<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+	<class id="C_1_1">
+	  <parent>C_1</parent>
+	</class>
+  </classes>
+</itop_design>',
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1" _delta="delete_if_exists_hierarchy"/>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1" _alteration="removed"/>
+    <class id="C_1_1" _alteration="removed"/>
+  </classes>
+</itop_design>'
+			],
+
+			'Delete if exist hierarchically a non existing subclass' => [
+				'sInitialXML' => '
+<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1">
+      <parent>cmdbAbstractObject</parent>
+    </class>
+	<class id="C_1_1">
+	  <parent>C_1</parent>
+	</class>
+  </classes>
+</itop_design>',
+				'sDeltaXML' => '
+<itop_design version="3.1">
+	<classes>
+		<class id="C_1_1" _delta="delete_hierarchy"/>
+		<class id="C_1" _delta="delete_if_exists_hierarchy"/>
+	</classes>
+</itop_design>',
+				'sExpectedXML' => '<itop_design>
+  <classes>
+    <class id="cmdbAbstractObject"/>
+    <class id="C_1" _alteration="removed"/>
+    <class id="C_1_1" _alteration="removed"/>
   </classes>
 </itop_design>'
 			],
