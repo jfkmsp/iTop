@@ -718,13 +718,11 @@ class ModelFactory
 						$oDeleteNode = $oSubClassNode->cloneNode();
 						$oDeleteNode->setAttribute('_delta', 'delete_hierarchy');
 						$oClassCollectionNode->appendChild($oDeleteNode);
-						// TODO specify "safe mode" for GetDelta()
 						$oSubClassNode->setAttribute('_delta', 'define');
 						break;
 				}
 				break;
 			case 'define':
-				// TODO specify "safe mode" for GetDelta()
 				$oSubClassNode->setAttribute('_delta', 'define');
 				break;
 			case 'force':
@@ -818,7 +816,7 @@ class ModelFactory
 				$oTargetNode = $oTargetParentNode->_FindChildNode($oSourceNode);
 				if (($oTargetNode !== null) && ($oTargetNode->getAttribute('_alteration') !== 'removed')) {
 					// Delete the node if it actually exists and is not already marked as deleted
-					$oTargetNode->Delete();
+					$oTargetNode->Delete(true);
 				}
 				// otherwise fail silently
 				break;
@@ -876,7 +874,7 @@ class ModelFactory
 			$this->DeleteSubClasses($oSubClassNode, false);
 		}
 		if (!$bIsRoot) {
-			$oClassNode->Delete();
+			$oClassNode->Delete(true);
 		}
 	}
 
@@ -2449,9 +2447,11 @@ EOF;
 	/**
 	 * Remove a node and set the flags that will be used to compute the delta
 	 *
+	 * @param bool $bSafeMode Induce the GetDelta() method to generate a "delete_if_exists" instead of a "delete"
+	 *
 	 * @throws \Exception
 	 */
-	public function Delete()
+	public function Delete(bool $bSafeMode = false)
 	{
 		switch ($this->getAttribute('_alteration'))
 		{
@@ -2476,6 +2476,9 @@ EOF;
 		if ($sFlag)
 		{
 			$this->setAttribute('_alteration', $sFlag);
+//			if ($bSafeMode && $sFlag === 'removed') {
+//				$this->setAttribute('_safe_mode', 1);
+//			}
 			$this->DeleteChildren();
 
 			// Add trace data

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<itop_design version="3.2">
+  <classes>
+    <class id="C_1" _delta="delete_hierarchy"/>
+    <class id="C_2">
+      <class id="C_2_1" _delta="delete_hierarchy"/>
+    </class>
+    <class id="C_3" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_4">
+      <properties _delta="delete"/>
+      <class id="C_4_1" _delta="delete_if_exists_hierarchy"/>
+    </class>
+  </classes>
+  <dictionaries>
+    <dictionary id="D_1" _delta="delete"/>
+    <dictionary id="D_2" _delta="delete_if_exists"/>
+  </dictionaries>
+</itop_design>

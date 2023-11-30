@@ -109,6 +109,12 @@ class iTopDesignFormat
 		'3.1' => array(
 			'previous' => '3.0',
 			'go_to_previous' => 'From31To30',
+			'next' => '3.2',
+			'go_to_next' => 'From31To32',
+		),
+		'3.2' => array(
+			'previous' => '3.1',
+			'go_to_previous' => 'From32To31',
 			'next' => null,
 			'go_to_next' => null,
 		),
@@ -1084,6 +1090,42 @@ class iTopDesignFormat
 		// - Remove rank in values
 		$this->RemoveNodeFromXPath("/itop_design/classes//class/fields/field/values/value/rank");
 	}
+
+	protected function From31To32($oFactory)
+	{
+		$oXPath = new DOMXPath($this->oDocument);
+
+		$oNodeList = $oXPath->query("/itop_design/classes//class[@_delta = 'delete']");
+		/** @var \DOMElement $oNode */
+		foreach ($oNodeList as $oNode) {
+			$oNode->setAttribute('_delta', 'delete_hierarchy');
+		}
+
+		$oNodeList = $oXPath->query("/itop_design/classes//class[@_delta = 'delete_if_exists']");
+		/** @var \DOMElement $oNode */
+		foreach ($oNodeList as $oNode) {
+			$oNode->setAttribute('_delta', 'delete_if_exists_hierarchy');
+		}
+	}
+
+
+	protected function From32To31($oFactory)
+	{
+		$oXPath = new DOMXPath($this->oDocument);
+
+		$oNodeList = $oXPath->query("/itop_design/classes//class[@_delta = 'delete_hierarchy']");
+		/** @var \DOMElement $oNode */
+		foreach ($oNodeList as $oNode) {
+			$oNode->setAttribute('_delta', 'delete');
+		}
+
+		$oNodeList = $oXPath->query("/itop_design/classes//class[@_delta = 'delete_if_exists_hierarchy']");
+		/** @var \DOMElement $oNode */
+		foreach ($oNodeList as $oNode) {
+			$oNode->setAttribute('_delta', 'delete_if_exists');
+		}
+	}
+
 
 	/**
 	 * @param string $sPath
