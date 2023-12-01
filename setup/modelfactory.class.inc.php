@@ -688,6 +688,9 @@ class ModelFactory
 						// Move (Sub)Classes from parent tree to the end of <classes>
 						$oSubClassNode->parentNode->removeChild($oSubClassNode);
 						$oClassCollectionNode->appendChild($oSubClassNode);
+//						$sComment = "Moved by FlattenClassesInDelta: $oSubClassNode->tagName (id: ".$oSubClassNode->getAttribute('id').') ';
+//						$oCommentNode = $oDOMDocument->importNode(new DOMComment($sComment));
+//						$oClassCollectionNode->insertBefore($oCommentNode, $oSubClassNode);
 					}
 				}
 			}
@@ -2476,9 +2479,9 @@ EOF;
 		if ($sFlag)
 		{
 			$this->setAttribute('_alteration', $sFlag);
-//			if ($bSafeMode && $sFlag === 'removed') {
-//				$this->setAttribute('_safe_mode', 1);
-//			}
+			if ($bSafeMode && $sFlag === 'removed') {
+				$this->SafeDeleteMark();
+			}
 			$this->DeleteChildren();
 
 			// Add trace data
@@ -2489,6 +2492,22 @@ EOF;
 			// Remove the node entirely
 			$this->parentNode->removeChild($this);
 		}
+	}
+
+	public function SafeDeleteMark()
+	{
+		// Not working if the node is not existing anymore
+		//$this->setAttribute('_safe_mode', 1);
+
+		// need an existing node
+		$sId = $this->getAttribute('id');
+		if ($sId !== "") {
+			$sId = "id=\"$sId\" ";
+		}
+		$sComment = " Delta Hint: <$this->tagName {$sId}_delta=\"delete_if_exists\"/> ";
+		$oDOMDocument = $this->ownerDocument;
+		$oCommentNode = $oDOMDocument->importNode(new DOMComment($sComment));
+		$this->parentNode->insertBefore($oCommentNode, $this);
 	}
 
 	/**

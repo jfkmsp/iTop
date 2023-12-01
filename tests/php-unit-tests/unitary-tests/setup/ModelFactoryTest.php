@@ -131,14 +131,14 @@ class ModelFactoryTest extends ItopTestCase
 <itop_design version="3.2">
 	<classes>
 		<class id="C_1_2" _delta="delete_hierarchy"/>
-		<class id="C_1_1" _delta="delete_hierarchy"/>
+		<class id="C_1_1" _delta="define"/>
 		<class id="C_1" _delta="delete_hierarchy"/>
 	</classes>
 </itop_design>',
 				'sExpectedXML' => '<itop_design version="3.2">
 	<classes>
 		<class id="C_1_2" _delta="delete_hierarchy"/>
-		<class id="C_1_1" _delta="delete_hierarchy"/>
+		<class id="C_1_1" _delta="define"/>
 		<class id="C_1" _delta="delete_hierarchy"/>
 	</classes>
 </itop_design>'
@@ -752,6 +752,7 @@ class ModelFactoryTest extends ItopTestCase
   <classes>
     <class id="cmdbAbstractObject"/>
     <class id="C_1" _alteration="removed"/>
+    <!-- Delta Hint: <class id="C_1_1" _delta="delete_if_exists"/> -->
     <class id="C_1_1" _alteration="removed"/>
   </classes>
 </itop_design>'
@@ -787,8 +788,10 @@ class ModelFactoryTest extends ItopTestCase
   <classes>
     <class id="cmdbAbstractObject"/>
     <class id="C_1" _alteration="removed"/>
+    <!-- Delta Hint: <class id="C_1_1" _delta="delete_if_exists"/> -->
     <class id="C_1_1" _alteration="removed"/>
     <class id="C_1_2" _alteration="removed"/>
+    <!-- Delta Hint: <class id="C_1_2_1" _delta="delete_if_exists"/> -->
     <class id="C_1_2_1" _alteration="removed"/>
   </classes>
 </itop_design>'
@@ -814,6 +817,7 @@ class ModelFactoryTest extends ItopTestCase
 				'sExpectedXML' => '<itop_design>
   <classes>
     <class id="cmdbAbstractObject"/>
+    <!-- Delta Hint: <class id="C_1" _delta="delete_if_exists"/> -->
     <class id="C_1" _alteration="removed"/>
   </classes>
 </itop_design>'
@@ -893,7 +897,9 @@ class ModelFactoryTest extends ItopTestCase
 				'sExpectedXML' => '<itop_design>
   <classes>
     <class id="cmdbAbstractObject"/>
+    <!-- Delta Hint: <class id="C_1" _delta="delete_if_exists"/> -->
     <class id="C_1" _alteration="removed"/>
+    <!-- Delta Hint: <class id="C_1_1" _delta="delete_if_exists"/> -->
     <class id="C_1_1" _alteration="removed"/>
   </classes>
 </itop_design>'
@@ -922,6 +928,7 @@ class ModelFactoryTest extends ItopTestCase
 				'sExpectedXML' => '<itop_design>
   <classes>
     <class id="cmdbAbstractObject"/>
+    <!-- Delta Hint: <class id="C_1" _delta="delete_if_exists"/> -->
     <class id="C_1" _alteration="removed"/>
     <class id="C_1_1" _alteration="removed"/>
   </classes>
@@ -1346,9 +1353,9 @@ XML
 </nodeA>
 XML
 			,
-			'sExpectedXML' => <<<XML
-<nodeA/>
-XML
+			'sExpectedXML' => '<nodeA>
+  <!-- Delta Hint: <nodeB _delta="delete_if_exists"/> -->
+</nodeA>'
 		];
 		$aDeltas['_delta="delete_if_exists" with id + existing node'] = [
 			'sInitialXML' => <<<XML
@@ -1363,9 +1370,9 @@ XML
 </nodeA>
 XML
 			,
-			'sExpectedXML' => <<<XML
-<nodeA/>
-XML
+			'sExpectedXML' => '<nodeA>
+  <!-- Delta Hint: <item id="toto" _delta="delete_if_exists"/> -->
+</nodeA>'
 		];
 		$aDeltas['_delta="delete_if_exists" without id + missing node'] = [
 			'sInitialXML' => <<<XML
