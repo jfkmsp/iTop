@@ -714,12 +714,12 @@ class ModelFactory
 				switch ($sCurrentDeltaSpec) {
 					case 'force':
 						$oDeleteNode = $oSubClassNode->cloneNode();
-						$oDeleteNode->setAttribute('_delta', 'delete_if_exists_hierarchy');
+						$oDeleteNode->setAttribute('_delta', 'delete_if_exists');
 						$oClassCollectionNode->appendChild($oDeleteNode);
 						break;
 					case 'redefine':
 						$oDeleteNode = $oSubClassNode->cloneNode();
-						$oDeleteNode->setAttribute('_delta', 'delete_hierarchy');
+						$oDeleteNode->setAttribute('_delta', 'delete');
 						$oClassCollectionNode->appendChild($oDeleteNode);
 						$oSubClassNode->setAttribute('_delta', 'define');
 						break;
@@ -753,15 +753,10 @@ class ModelFactory
 		$sDeltaSpec = $oSourceNode->getAttribute('_delta');
 		if (($oSourceNode->tagName === 'class') && ($oSourceNode->parentNode->tagName === 'classes') && ($oSourceNode->parentNode->parentNode->tagName === 'itop_design')) {
 			switch ($sDeltaSpec) {
-				case 'delete_if_exists_hierarchy':
+				case 'delete_if_exists':
+				case 'delete':
 					// Delete the nodes of all the subclasses
 					$this->DeleteSubClasses($oTargetParentNode->_FindChildNode($oSourceNode));
-					$sDeltaSpec = 'delete_if_exists';
-					break;
-				case 'delete_hierarchy':
-					// Delete the nodes of all the subclasses
-					$this->DeleteSubClasses($oTargetParentNode->_FindChildNode($oSourceNode));
-					$sDeltaSpec = 'delete';
 					break;
 			}
 		}

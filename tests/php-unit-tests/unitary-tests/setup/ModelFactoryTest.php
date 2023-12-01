@@ -126,20 +126,20 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>'
 			],
 
-			'Flat delete_hierarchy' => [
+			'Flat delete' => [
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1_2" _delta="delete_hierarchy"/>
+		<class id="C_1_2" _delta="delete"/>
 		<class id="C_1_1" _delta="define"/>
-		<class id="C_1" _delta="delete_hierarchy"/>
+		<class id="C_1" _delta="delete"/>
 	</classes>
 </itop_design>',
 				'sExpectedXML' => '<itop_design version="3.2">
 	<classes>
-		<class id="C_1_2" _delta="delete_hierarchy"/>
+		<class id="C_1_2" _delta="delete"/>
 		<class id="C_1_1" _delta="define"/>
-		<class id="C_1" _delta="delete_hierarchy"/>
+		<class id="C_1" _delta="delete"/>
 	</classes>
 </itop_design>'
 			],
@@ -182,11 +182,11 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>',
 				'sExpectedXML' => '<itop_design version="3.2">
   <classes>
-    <class id="C_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1" _delta="delete_if_exists"/>
     <class id="C_1" _delta="force">
 		<parent>cmdbAbstractObject</parent>
 	</class>
-    <class id="C_2" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_2" _delta="delete_if_exists"/>
     <class id="C_2" _delta="force">
 		<parent>cmdbAbstractObject</parent>
 	</class>
@@ -208,11 +208,11 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>',
 				'sExpectedXML' => '<itop_design version="3.2">
   <classes>
-    <class id="C_1" _delta="delete_hierarchy"/>
+    <class id="C_1" _delta="delete"/>
     <class id="C_1" _delta="define">
 		<parent>cmdbAbstractObject</parent>
 	</class>
-    <class id="C_2" _delta="delete_hierarchy"/>
+    <class id="C_2" _delta="delete"/>
     <class id="C_2" _delta="define">
 		<parent>cmdbAbstractObject</parent>
 	</class>
@@ -244,7 +244,7 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>'
 			],
 
-			'Complex hierarchy delete_hierarchy' => [
+			'Complex hierarchy delete' => [
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
@@ -254,12 +254,12 @@ class ModelFactoryTest extends ItopTestCase
 				<parent>C_1</parent>
 				<class id="C_1_1_1">
 					<parent>C_1_1</parent>
-					<class id="C_1_1_1_1" _delta="delete_hierarchy"/>
+					<class id="C_1_1_1_1" _delta="delete"/>
 				</class>
 			</class>
 			<class id="C_1_2">
 				<parent>C_1</parent>
-				<class id="C_1_2_1" _delta="delete_hierarchy"/>
+				<class id="C_1_2_1" _delta="delete"/>
 			</class>
 		</class>
 	</classes>
@@ -275,11 +275,11 @@ class ModelFactoryTest extends ItopTestCase
     <class id="C_1_1_1">
       <parent>C_1_1</parent>
     </class>
-    <class id="C_1_1_1_1" _delta="delete_hierarchy"/>
+    <class id="C_1_1_1_1" _delta="delete"/>
     <class id="C_1_2">
       <parent>C_1</parent>
     </class>
-    <class id="C_1_2_1" _delta="delete_hierarchy"/>
+    <class id="C_1_2_1" _delta="delete"/>
   </classes>
 </itop_design>'
 			],
@@ -409,7 +409,7 @@ class ModelFactoryTest extends ItopTestCase
     <class id="C_1">
 		<parent>cmdbAbstractObject</parent>
 	</class>
-    <class id="C_1_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1_1" _delta="delete_if_exists"/>
     <class id="C_1_1" _delta="force">
       <parent>C_1</parent>
     </class>
@@ -422,7 +422,7 @@ class ModelFactoryTest extends ItopTestCase
     <class id="C_1_2">
       <parent>C_1</parent>
     </class>
-    <class id="C_1_2_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1_2_1" _delta="delete_if_exists"/>
     <class id="C_1_2_1" _delta="force">
       <parent>C_1_2</parent>
     </class>
@@ -456,7 +456,7 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>',
 				'sExpectedXML' => '<itop_design version="3.2">
   <classes>
-    <class id="C_1" _delta="delete_if_exists_hierarchy"/>
+    <class id="C_1" _delta="delete_if_exists"/>
     <class id="C_1" _delta="force">
 		<parent>cmdbAbstractObject</parent>
 	</class>
@@ -508,7 +508,7 @@ class ModelFactoryTest extends ItopTestCase
     <class id="C_1">
 		<parent>cmdbAbstractObject</parent>
 	</class>
-    <class id="C_1_1" _delta="delete_hierarchy"/>
+    <class id="C_1_1" _delta="delete"/>
     <class id="C_1_1" _delta="define">
       <parent>C_1</parent>
     </class>
@@ -521,7 +521,7 @@ class ModelFactoryTest extends ItopTestCase
     <class id="C_1_2">
       <parent>C_1</parent>
     </class>
-    <class id="C_1_2_1" _delta="delete_hierarchy"/>
+    <class id="C_1_2_1" _delta="delete"/>
     <class id="C_1_2_1" _delta="define">
       <parent>C_1_2</parent>
     </class>
@@ -555,7 +555,7 @@ class ModelFactoryTest extends ItopTestCase
 </itop_design>',
 				'sExpectedXML' => '<itop_design version="3.2">
   <classes>
-    <class id="C_1" _delta="delete_hierarchy"/>
+    <class id="C_1" _delta="delete"/>
     <class id="C_1" _delta="define">
 		<parent>cmdbAbstractObject</parent>
 	</class>
@@ -717,7 +717,7 @@ class ModelFactoryTest extends ItopTestCase
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1" _delta="delete_hierarchy">
+		<class id="C_1" _delta="delete">
 		</class>
 	</classes>
 </itop_design>',
@@ -745,7 +745,7 @@ class ModelFactoryTest extends ItopTestCase
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1" _delta="delete_hierarchy"/>
+		<class id="C_1" _delta="delete"/>
 	</classes>
 </itop_design>',
 				'sExpectedXML' => '<itop_design>
@@ -780,8 +780,8 @@ class ModelFactoryTest extends ItopTestCase
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1_2" _delta="delete_hierarchy"/>
-		<class id="C_1" _delta="delete_hierarchy"/>
+		<class id="C_1_2" _delta="delete"/>
+		<class id="C_1" _delta="delete"/>
 	</classes>
 </itop_design>',
 				'sExpectedXML' => '<itop_design>
@@ -810,7 +810,7 @@ class ModelFactoryTest extends ItopTestCase
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1" _delta="delete_if_exists_hierarchy">
+		<class id="C_1" _delta="delete_if_exists">
 		</class>
 	</classes>
 </itop_design>',
@@ -836,7 +836,7 @@ class ModelFactoryTest extends ItopTestCase
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1" _delta="delete_if_exists_hierarchy">
+		<class id="C_1" _delta="delete_if_exists">
 		</class>
 	</classes>
 </itop_design>',
@@ -864,7 +864,7 @@ class ModelFactoryTest extends ItopTestCase
 <itop_design version="3.2">
 	<classes>
 		<class id="C_1" _delta="delete"/>
-		<class id="C_1" _delta="delete_if_exists_hierarchy"/>
+		<class id="C_1" _delta="delete_if_exists"/>
 	</classes>
 </itop_design>',
 				'sExpectedXML' => '<itop_design>
@@ -891,7 +891,7 @@ class ModelFactoryTest extends ItopTestCase
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1" _delta="delete_if_exists_hierarchy"/>
+		<class id="C_1" _delta="delete_if_exists"/>
 	</classes>
 </itop_design>',
 				'sExpectedXML' => '<itop_design>
@@ -921,8 +921,8 @@ class ModelFactoryTest extends ItopTestCase
 				'sDeltaXML' => '
 <itop_design version="3.2">
 	<classes>
-		<class id="C_1_1" _delta="delete_hierarchy"/>
-		<class id="C_1" _delta="delete_if_exists_hierarchy"/>
+		<class id="C_1_1" _delta="delete"/>
+		<class id="C_1" _delta="delete_if_exists"/>
 	</classes>
 </itop_design>',
 				'sExpectedXML' => '<itop_design>
