@@ -28,7 +28,6 @@ class iTopDesignFormatTest extends ItopTestCase
 
 	public function testGetPreviousDesignVersion()
 	{
-		$this->assertSame('3.1', iTopDesignFormat::GetPreviousDesignVersion('3.2'));
 		$this->assertSame('3.0', iTopDesignFormat::GetPreviousDesignVersion('3.1'));
 		$this->assertSame('1.7', iTopDesignFormat::GetPreviousDesignVersion('3.0'));
 		$this->assertSame('1.6', iTopDesignFormat::GetPreviousDesignVersion('1.7'));
@@ -142,8 +141,6 @@ class iTopDesignFormatTest extends ItopTestCase
 			'3.0 to 1.7'   => ['sXmlFileName' => '3.0_to_1.7'],
 			'3.0 to 3.1'   => ['sXmlFileName' => '3.0_to_3.1'],
 			'3.1 to 3.0'   => ['sXmlFileName' => '3.1_to_3.0'],
-			'3.1 to 3.2'   => ['sXmlFileName' => '3.1_to_3.2'],
-			'3.2 to 3.1'   => ['sXmlFileName' => '3.2_to_3.1'],
 			'Bug_4569'     => ['sXmlFileName' => 'Bug_4569'],
 		];
 	}
@@ -196,7 +193,6 @@ class iTopDesignFormatTest extends ItopTestCase
 	{
 		return [
 			'1.7 to 3.0' => ['3.0', '1.7'],
-			'3.1 to 3.2' => ['3.2', '3.1_to_3.2']
 		];
 	}
 
