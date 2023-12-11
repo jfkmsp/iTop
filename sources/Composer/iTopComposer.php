@@ -132,13 +132,15 @@ class iTopComposer
 			$APPROOT_WITH_SLASHES.'lib/symfony/routing/Tests',
 			$APPROOT_WITH_SLASHES.'lib/symfony/stopwatch/Tests',
 			$APPROOT_WITH_SLASHES.'lib/symfony/translation-contracts/Test',
-			$APPROOT_WITH_SLASHES.'lib/symfony/twig-bridge/Tests',
+			$APPROOT_WITH_SLASHES.'lib/symfony/twig-bridge/Test',
 			$APPROOT_WITH_SLASHES.'lib/symfony/twig-bundle/Tests',
 			$APPROOT_WITH_SLASHES.'lib/symfony/var-dumper/Test',
 			$APPROOT_WITH_SLASHES.'lib/symfony/var-dumper/Tests/Test',
 			$APPROOT_WITH_SLASHES.'lib/symfony/var-dumper/Tests',
 			$APPROOT_WITH_SLASHES.'lib/symfony/web-profiler-bundle/Tests',
 			$APPROOT_WITH_SLASHES.'lib/symfony/yaml/Tests',
+
+			$APPROOT_WITH_SLASHES.'lib/thenetworg/oauth2-azure/tests',
 
 			$APPROOT_WITH_SLASHES.'lib/twig/twig/src/Test',
 			$APPROOT_WITH_SLASHES.'lib/twig/twig/lib/Twig/Test',

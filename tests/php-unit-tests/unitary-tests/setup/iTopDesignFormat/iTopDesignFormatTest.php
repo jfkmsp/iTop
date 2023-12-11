@@ -6,6 +6,8 @@ use Combodo\iTop\Test\UnitTest\ItopTestCase;
 use DOMDocument;
 use DOMXPath;
 use iTopDesignFormat;
+use ReflectionException;
+use utils;
 
 
 /**
@@ -57,12 +59,6 @@ class iTopDesignFormatTest extends ItopTestCase
 		$sInputXml = $this->GetFileContent($sSamplesRelDirPath.$sXmlFileName.'.input');
 		$oInputDesignFormat = static::GetItopFormatFromString($sInputXml);
 
-		// N°6562 Disable test for 1.7 => 3.0 conversion on PHP 8.1.21 / 8.2.8 as it is failing due to unknown reason. Cause will be investigated next week.
-		if ((PHP_VERSION_ID === 80121 || PHP_VERSION_ID === 80208)
-			&& $oInputDesignFormat->GetVersion() === "1.7" && $sTargetVersion === "3.0") {
-			$this->markTestSkipped("Skip test for 1.7 => 3.0 conversion on PHP 8.1.21 as it is failing due to unknown reason. Cause will be investigated next week.");
-		}
-
 		$bResult = $oInputDesignFormat->Convert($sTargetVersion);
 		$aErrors = $oInputDesignFormat->GetErrors();
 		$this->assertCount($iExpectedErrors, $aErrors,
@@ -106,12 +102,6 @@ class iTopDesignFormatTest extends ItopTestCase
 		$sExpectedXml = $this->GetFileContent($sSamplesRelDirPath.$sXmlFileName.'.expected');
 		$oExpectedDesignFormat = static::GetItopFormatFromString($sExpectedXml);
 		$sExpectedVersion = $oExpectedDesignFormat->GetVersion();
-
-		// N°6562 Disable test for 1.7 => 3.0 conversion on PHP 8.1.21 / 8.2.8 as it is failing due to unknown reason. Cause will be investigated next week.
-		if ((PHP_VERSION_ID === 80121 || PHP_VERSION_ID === 80208)
-			&& $sInputVersion === "1.7" && $sExpectedVersion === "3.0") {
-			$this->markTestSkipped("Skip test for 1.7 => 3.0 conversion on PHP 8.1.21 as it is failing due to unknown reason. Cause will be investigated next week.");
-		}
 
 		if (version_compare($sInputVersion, $sExpectedVersion, '>=')) {
 			$this->markTestSkipped("This dataset correspond to a downward conversion ($sInputVersion to $sExpectedVersion) and we want to test upwards conversions => skipping !");
@@ -269,6 +259,53 @@ class iTopDesignFormatTest extends ItopTestCase
 	{
 		$sCurrentPath = __DIR__;
 
-		return file_get_contents($sCurrentPath.DIRECTORY_SEPARATOR.$sFileName.'.xml');
+		return file_get_contents($sCurrentPath . DIRECTORY_SEPARATOR . $sFileName . '.xml');
+	}
+
+	/**
+	 * @since 3.2.0 N°6558 method creation
+	 */
+	public function testAVersionsContent(): void
+	{
+		$aAVersionsErrors = [];
+
+		foreach (iTopDesignFormat::$aVersions as $sXmlVersion => $aXmlVersionData) {
+			foreach (['previous', 'go_to_previous', 'next', 'go_to_next'] as $sVersionParamKey) {
+				if (false === array_key_exists($sVersionParamKey, $aXmlVersionData)) {
+					$aAVersionsErrors[] = "$sXmlVersion version: missing `$sVersionParamKey` key !";
+				}
+			}
+
+			foreach (['previous', 'next'] as $sXmlVersionPointingToKey) {
+				if (false === array_key_exists($sXmlVersionPointingToKey, $aXmlVersionData)) {
+					continue;
+				}
+				if (utils::IsNullOrEmptyString($aXmlVersionData[$sXmlVersionPointingToKey])) {
+					continue;
+				}
+				if (false === \array_key_exists($aXmlVersionData[$sXmlVersionPointingToKey], iTopDesignFormat::$aVersions)) {
+					$aAVersionsErrors[] = "$sXmlVersion version: invalid value for `$sXmlVersionPointingToKey` key ! Value=" . $aXmlVersionData[$sXmlVersionPointingToKey];
+				}
+			}
+
+			$oItopDesignFormatClass = new \ReflectionClass(iTopDesignFormat::class);
+			foreach (['go_to_previous', 'go_to_next'] as $sXmlConversionMethodKey) {
+				if (false === array_key_exists($sXmlConversionMethodKey, $aXmlVersionData)) {
+					continue;
+				}
+				$sXmlConversionMethod = $aXmlVersionData[$sXmlConversionMethodKey];
+				if (utils::IsNullOrEmptyString($sXmlConversionMethod)) {
+					continue;
+				}
+				try {
+					/** @noinspection PhpExpressionResultUnusedInspection */
+					$oItopDesignFormatClass->getMethod($sXmlConversionMethod);
+				} catch (ReflectionException $e) {
+					$aAVersionsErrors[] = "$sXmlVersion version: conversion method `$sXmlConversionMethod` for key `$sXmlConversionMethodKey` does not exist";
+				}
+			}
+		}
+
+		$this->assertCount(0, $aAVersionsErrors, 'There were errors detected in iTopDesignFormat::$aVersions : ' . var_export($aAVersionsErrors, true));
 	}
 }

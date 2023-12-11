@@ -109,6 +109,12 @@ class iTopDesignFormat
 		'3.1' => array(
 			'previous' => '3.0',
 			'go_to_previous' => 'From31To30',
+			'next' => '3.2',
+			'go_to_next' => 'From31To32',
+		),
+		'3.2' => array(
+			'previous' => '3.1',
+			'go_to_previous' => 'From32To31',
 			'next' => null,
 			'go_to_next' => null,
 		),
@@ -892,7 +898,10 @@ class iTopDesignFormat
 		$oNodeList = $oXPath->query("/itop_design/classes//class/fields/field/values/value");
 		foreach ($oNodeList as $oNode) {
 			$sCode = $oNode->textContent;
-			$oNode->textContent = '';
+			// N°6562 textContent is readonly, see https://www.php.net/manual/en/class.domnode.php#95545
+			// $oNode->textContent = '';
+			// N°6562 to update text node content we must use the node methods !
+			$oNode->removeChild($oNode->firstChild);
 			$oCodeNode = $oNode->ownerDocument->createElement("code", $sCode);
 			$oNode->appendChild($oCodeNode);
 		}
@@ -982,7 +991,14 @@ class iTopDesignFormat
 				if ($oStyleNode) {
 					$this->DeleteNode($oStyleNode);
 				}
-				$oNode->textContent = $sCode;
+
+				// N°6562 textContent is readonly, see https://www.php.net/manual/en/class.domnode.php#95545
+				// $oNode->textContent = $sCode;
+				// N°6562 to update text node content we must use the node methods !
+				// we are using DOMDocument::createTextNode instead of new DOMText because elements created using the constructor are read only
+				// see https://www.php.net/manual/en/domelement.construct.php
+				$oTextContentNode = $this->oDocument->createTextNode($sCode);
+				$oNode->appendChild($oTextContentNode);
 			}
 		}
 		// - Style
@@ -1073,6 +1089,26 @@ class iTopDesignFormat
 		$this->RemoveNodeFromXPath("/itop_design/classes//class/fields/field/sort_type");
 		// - Remove rank in values
 		$this->RemoveNodeFromXPath("/itop_design/classes//class/fields/field/values/value/rank");
+	}
+
+	/**
+	 * Upgrade the format from version 3.1 to 3.2
+	 * @param \ModelFactory $oFactory
+	 * @return void (Errors are logged)
+	 */
+	protected function From31To32($oFactory)
+	{
+		// Nothing for now...
+	}
+
+	/**
+	 * Downgrade the format from version 3.2 to 3.1
+	 * @param \ModelFactory $oFactory
+	 * @return void (Errors are logged)
+	 */
+	protected function From32To31($oFactory)
+	{
+		// Nothing for now...
 	}
 
 	/**

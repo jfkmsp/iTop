@@ -163,7 +163,7 @@ class UIExtKeyWidget
 		$oPage->add_linked_script('../js/extkeywidget.js');
 		$oPage->add_linked_script('../js/forms-json-utils.js');
 
-		$bCreate = (!$this->bSearchMode) && (UserRights::IsActionAllowed($this->sTargetClass, UR_ACTION_BULK_MODIFY) && $bAllowTargetCreation);
+		$bCreate = (!$this->bSearchMode) && (UserRights::IsActionAllowed($this->sTargetClass, UR_ACTION_MODIFY) && $bAllowTargetCreation);
 		$bExtensions = true;
 		$sMessage = Dict::S('UI:Message:EmptyList:UseSearchForm');
 		$sAttrFieldPrefix = ($this->bSearchMode) ? '' : 'attr_';
@@ -975,6 +975,10 @@ HTML
 		// Remove blob edition from creation form @see N°5863 to allow blob edition in modal context
 		FormHelper::DisableAttributeBlobInputs($this->sTargetClass, $aFormExtraParams);
 
+		if(FormHelper::HasMandatoryAttributeBlobInputs($oNewObj)){
+			$oPage->AddUiBlock(FormHelper::GetAlertForMandatoryAttributeBlobInputsInModal(FormHelper::ENUM_MANDATORY_BLOB_MODE_CREATE));
+		}
+		
 		cmdbAbstractObject::DisplayCreationForm($oPage, $this->sTargetClass, $oNewObj, array(), $aFormExtraParams);
 		$oPage->add(<<<HTML
 	</div>

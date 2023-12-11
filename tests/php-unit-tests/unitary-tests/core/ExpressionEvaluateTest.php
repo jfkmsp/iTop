@@ -5,7 +5,7 @@ namespace Combodo\iTop\Test\UnitTest\Core;
 
 
 use CMDBSource;
-use Combodo\iTop\Test\UnitTest\iTopDataTestCase;
+use Combodo\iTop\Test\UnitTest\ItopDataTestCase;
 use DateInterval;
 use DateTime;
 use Expression;
@@ -13,12 +13,7 @@ use FunctionExpression;
 use MetaModel;
 use ScalarExpression;
 
-/**
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
- */
-class ExpressionEvaluateTest extends iTopDataTestCase
+class ExpressionEvaluateTest extends ItopDataTestCase
 {
 	const USE_TRANSACTION = false;
 
@@ -38,7 +33,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 		$aParameters = $oExpression->GetParameters($sParentFilter);
 		sort($aExpectedParameters);
 		sort($aParameters);
-		static::assertEquals($aExpectedParameters, $aParameters);
+		$this->assertEquals($aExpectedParameters, $aParameters);
 	}
 
 	public function GetParametersProvider()
@@ -86,7 +81,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 	{
 		$oExpression = Expression::FromOQL($sExpression);
 		$value = $oExpression->Evaluate(array());
-		static::assertEquals($expectedValue, $value);
+		$this->assertEquals($expectedValue, $value);
 	}
 
 	public function VariousExpressionsProvider()
@@ -225,7 +220,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 		$sNewExpression = "return $sExpression;";
 		$oExpression = eval($sNewExpression);
 		$res = $oExpression->Evaluate(array());
-		static::assertEquals($expectedValue, $res);
+		$this->assertEquals($expectedValue, $res);
 	}
 
 	public function NotYetParsableExpressionsProvider()
@@ -287,7 +282,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 			$value = $aResults[0]["test_$i"];
 			$expectedValue = $aTest[1];
 			$this->debug("Test #$i: {$aTests[$i][0]} => ".var_export($value, true));
-			static::assertEquals($expectedValue, $value);
+			$this->assertEquals($expectedValue, $value);
 		}
 	}
 
@@ -310,7 +305,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 
 		$res = $oObject->EvaluateExpression($oExpression);
 
-		static::assertEquals($expected, $res);
+		$this->assertEquals($expected, $res);
 	}
 
 	public function ExpressionsWithObjectFieldsProvider()
@@ -340,12 +335,18 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 	{
 		$oExpression = Expression::FromOQL($sExpression);
 		$res = $oExpression->Evaluate($aParameters);
-		static::assertEquals($expected, $res);
+		$this->assertEquals($expected, $res);
 	}
 
 	public function ExpressionWithParametersProvider()
 	{
 		return array(
+			['`DBVariables["analyze_sample_percentage"]` > 10', ['DBVariables["analyze_sample_percentage"]' => 20], true],
+			['`DataBase["DBDataSize"]`', ['DataBase["DBDataSize"]' => 4096], 4096],
+			['`FileSystem["ItopInstallationIntegrity"]`', ['FileSystem["ItopInstallationIntegrity"]' => 'not_conform'], 'not_conform'],
+			['`DBTablesInfo["attachment"].DataSize` > 100', ['DBTablesInfo["attachment"].DataSize' => 200], true],
+			['`DBTablesInfo[].DataSize` > 100', ['DBTablesInfo[].DataSize' => 50], false],
+			['(`DBTablesInfo[].DataSize` > 100) AND (`DBTablesInfo[].DataFree` * 100 / (`DBTablesInfo[].DataSize` + `DBTablesInfo[].IndexSize` + `DBTablesInfo[].DataFree`) > 10)', ['DBTablesInfo[].DataSize' => 200, 'DBTablesInfo[].DataFree' => 100, 'DBTablesInfo[].IndexSize' => 10], true],
 			array('CONCAT(SUBSTR(name, 4), " cause")', array('name' => 'noble'), 'le cause'),
 		);
 	}
@@ -369,11 +370,11 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 		$res = $oExpression->IsTrue();
 		if ($bExpectTrue)
 		{
-			static::assertTrue($res, 'arg: '.$sExpression);
+			$this->assertTrue($res, 'arg: '.$sExpression);
 		}
 		else
 		{
-			static::assertFalse($res, 'arg: '.$sExpression);
+			$this->assertFalse($res, 'arg: '.$sExpression);
 		}
 	}
 
@@ -414,10 +415,10 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 		if ($bProcessed)
 		{
 			$sqlValue = CMDBSource::QueryToScalar("SELECT DATE_FORMAT('$sDate', '%$sFormat')");
-			static::assertEquals($sqlValue, $sValueOrException, 'Check test against MySQL');
+			$this->assertEquals($sqlValue, $sValueOrException, 'Check test against MySQL');
 
 			$res = $oExpression->Evaluate(array());
-			static::assertEquals($sValueOrException, $res, 'Check evaluation');
+			$this->assertEquals($sValueOrException, $res, 'Check evaluation');
 		}
 		else
 		{
@@ -510,7 +511,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 			{
 				$oExpression = new FunctionExpression('DATE_FORMAT', array(new ScalarExpression($sDate), new ScalarExpression("%$sFormat")));
 				$itopExpressionResult = $oExpression->Evaluate(array());
-				static::assertSame($aMysqlDateFormatRsultsForAllFormats[$sFormat], $itopExpressionResult, "Format %$sFormat not matching MySQL for '$sDate'");
+				$this->assertSame($aMysqlDateFormatRsultsForAllFormats[$sFormat], $itopExpressionResult, "Format %$sFormat not matching MySQL for '$sDate'");
 			}
 		}
 	}
@@ -546,7 +547,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 		$oDate = new DateTime($sStartDate);
 		for ($i = 0 ; $i < $iRepeat ; $i++)
 		{
-			$sDate = date_format($oDate, 'Y-m-d, H:i:s');
+			$sDate = date_format($oDate, 'Y-m-d H:i:s');
 			$this->debug("Checking '$sDate'");
 			$this->testEveryTimeFormat($sDate);
 			$oDate->add(new DateInterval($sInterval));
@@ -556,7 +557,7 @@ class ExpressionEvaluateTest extends iTopDataTestCase
 	public function EveryTimeFormatOnDateRangeProvider()
 	{
 		return array(
-			'10 years, day by day' => array('2000-01-01', 'P1D', 365 * 10),
+			'10 years, each 17 days' => array('2000-01-01', 'P17D', 365 * 10 / 17),
 			'1 day, hour by hour' => array('2000-01-01 00:01:02', 'PT1H', 24),
 			'1 hour, minute by minute' => array('2000-01-01 00:01:02', 'PT1M', 60),
 			'1 minute, second by second' => array('2000-01-01 00:01:02', 'PT1S', 60),

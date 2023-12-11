@@ -87,9 +87,11 @@ We would like to give a special thank you 🤗 to the people from the community 
 - Castro, Randall Badilla
 - Colantoni, Maria Laura
 - Couronné, Guy
+- Dejin, Bie (a.k.a [@bdejin](https://github.com/bdejin))
 - Dvořák, Lukáš
 - Goethals, Stefan
 - Gumble, David
+- Ji, Leeb (冀利斌) (a.k.a [@chileeb](https://github.com/chileeb))
 - Kaltefleiter, Lars (a.k.a [@larhip](https://www.github.com/larhip))
 - Khamit, Shamil
 - Kincel, Martin
@@ -107,6 +109,7 @@ We would like to give a special thank you 🤗 to the people from the community 
 - Rudner, Björn (a.k.a [@rudnerbjoern](https://github.com/rudnerbjoern))
 - Seki, Shoji
 - Shilov, Vladimir
+- Stetina, Pavel (a.k.a [@Stetinac](https://github.com/Stetinac))
 - Stukalov, Ilya (a.k.a [@ilya](https://www.github.com/ilya)-stukalov)
 - Tulio, Marco
 - Turrubiates, Miguel

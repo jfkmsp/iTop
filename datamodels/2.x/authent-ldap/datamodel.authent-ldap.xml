@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.1">
+<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="3.2">
   <classes>
     <class id="UserLDAP" _delta="define">
       <parent>cmdbAbstractObject</parent>
@@ -355,4 +355,26 @@
       </presentation>
     </class>
   </classes>
+  <meta>
+    <classes>
+      <class id="UserInternal" _delta="define_if_not_exists">
+        <fields>
+          <field id="contactid" xsi:type="AttributeExternalKey">
+            <target_class>Contact</target_class>
+          </field>
+          <field id="first_name" xsi:type="AttributeExternalField"/>
+          <field id="last_name" xsi:type="AttributeExternalField"/>
+          <field id="status" xsi:type="AttributeEnum"/>
+          <field id="org_id" xsi:type="AttributeExternalField"/>
+          <field id="email" xsi:type="AttributeExternalField"/>
+          <field id="login" xsi:type="AttributeString"/>
+          <field id="language" xsi:type="AttributeApplicationLanguage"/>
+          <field id="status" xsi:type="AttributeEnum"/>
+          <field id="allowed_org_list" xsi:type="AttributeLinkedSetIndirect"/>
+          <field id="profile_list" xsi:type="AttributeLinkedSetIndirect"/>
+          <field id="log" xsi:type="AttributeCaseLog"/>
+        </fields>
+      </class>
+    </classes>
+  </meta>
 </itop_design>

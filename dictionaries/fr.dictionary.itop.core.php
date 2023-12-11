@@ -39,6 +39,7 @@ Dict::Add('FR FR', 'French', 'Français', array(
 	'Core:AttributeTagSet' => 'Liste d\'étiquettes',
 	'Core:AttributeTagSet+' => '',
 	'Core:AttributeSet:placeholder' => 'cliquer pour ajouter',
+	'Core:Placeholder:CannotBeResolved' => '(%1$s : non remplacé)',
 	'Core:AttributeClassAttCodeSet:ItemLabel:AttributeFromClass' => '%1$s (%2$s)',
 	'Core:AttributeClassAttCodeSet:ItemLabel:AttributeFromOneChildClass' => '%1$s (%2$s de la classe %3$s)',
 	'Core:AttributeClassAttCodeSet:ItemLabel:AttributeFromSeveralChildClasses' => '%1$s (%2$s d\'une sous-classe)',
@@ -983,7 +984,7 @@ Plusieurs champs peuvent ainsi être modifiés lors d\'une "mise à jour" en app
 	'Core:BulkExport:DateTimeFormatDefault_Example' => 'Format par défaut (%1$s), ex. %2$s',
 	'Core:BulkExport:DateTimeFormatCustom_Format' => 'Format spécial: %1$s',
 	'Core:BulkExport:PDF:PageNumber' => 'Page %1$s',
-	'Core:DateTime:Placeholder_d' => 'JJ', // Day of the month: 2 digits (with leading zero)
+    'Core:DateTime:Placeholder_d' => 'JJ', // Day of the month: 2 digits (with leading zero)
 	'Core:DateTime:Placeholder_j' => 'J', // Day of the month: 1 or 2 digits (without leading zero)
 	'Core:DateTime:Placeholder_m' => 'MM', // Month on 2 digits i.e. 01-12
 	'Core:DateTime:Placeholder_n' => 'M', // Month on 1 or 2 digits 1-12

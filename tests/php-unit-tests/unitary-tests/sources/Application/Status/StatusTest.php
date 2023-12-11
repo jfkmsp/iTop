@@ -8,6 +8,7 @@
 namespace Combodo\iTop\Test\UnitTest\Status;
 
 use Combodo\iTop\Test\UnitTest\ItopTestCase;
+use Config;
 
 class StatusTest extends ItopTestCase
 {
@@ -17,29 +18,21 @@ class StatusTest extends ItopTestCase
 		require_once APPROOT.'core/config.class.inc.php'; // for constants
 	}
 
-    public function testStatusWrongUrl() {
-		$sPath = APPROOT.'/status_wrong.php';
-
-        exec("php $sPath", $aOutput, $iRet);
-        $this->assertNotEquals(0, $iRet, "Problem executing status page: $sPath, $iRet, aOutput:\n" . var_export($aOutput, true));
-
-    }
-
-    public function testStatusGood() {
-		$sPath = APPROOT.'/webservices/status.php';
-
-		exec("php $sPath", $aOutput, $iRet);
-		$this->assertEquals(0, $iRet, "Problem executing status page: $sPath, $iRet, aOutput:\n".var_export($aOutput, true));
+	protected function GetPHPCommand()
+	{
+		$this->RequireOnceItopFile('application/utils.inc.php');
+		$oConfig = new Config(ITOP_DEFAULT_CONFIG_FILE);
+		return $oConfig->Get('php_path');
 	}
 
-	/**
-	 *
-	 */
-	public function testStatusGoodWithJson()
+	public function testStatusPageRepliesAsExpected()
 	{
 		$sPath = APPROOT.'/webservices/status.php';
 
-		exec("php $sPath", $aOutput, $iRet);
+		$sPHP = $this->GetPHPCommand();
+		exec("$sPHP $sPath", $aOutput, $iRet);
+		$this->assertEquals(0, $iRet, "Problem executing status page: $sPath, $iRet, aOutput:\n".var_export($aOutput, true));
+
 		$sAdditionalInfo = "aOutput:\n".var_export($aOutput, true).'.';
 
 		//Check response

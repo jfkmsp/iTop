@@ -918,7 +918,7 @@ class RuntimeDashboard extends Dashboard
 	{
 		$bCustomized = false;
 
-		$sDashboardFileSanitized = utils::RealPath($sDashboardFile, APPROOT);
+		$sDashboardFileSanitized = utils::RealPath(APPROOT.$sDashboardFile, APPROOT);
 		if (false === $sDashboardFileSanitized) {
 			throw new SecurityException('Invalid dashboard file !');
 		}
@@ -1141,7 +1141,7 @@ JS
 		$oToolbar->AddSubBlock($oActionButton);
 
 		$aActions = array();
-		$sFile = addslashes($this->sDefinitionFile);
+		$sFile = addslashes(utils::LocalPath($this->sDefinitionFile));
 		$sJSExtraParams = json_encode($aExtraParams);
 		if ($this->HasCustomDashboard()) {
 			$oEdit = new JSPopupMenuItem('UI:Dashboard:Edit', Dict::S('UI:Dashboard:EditCustom'), "return EditDashboard('{$this->sId}', '$sFile', $sJSExtraParams)");
@@ -1264,12 +1264,12 @@ EOF
 		$sOkButtonLabel = Dict::S('UI:Button:Save');
 		$sCancelButtonLabel = Dict::S('UI:Button:Cancel');
 		
-		$sId = addslashes($this->sId);
-		$sLayoutClass = addslashes($this->sLayoutClass);
+		$sId = utils::HtmlEntities($this->sId);
+		$sLayoutClass = utils::HtmlEntities($this->sLayoutClass);
 		$sAutoReload = $this->bAutoReload ? 'true' : 'false';
 		$sAutoReloadSec = (string) $this->iAutoReloadSec;
-		$sTitle = addslashes($this->sTitle);
-		$sFile = addslashes($this->GetDefinitionFile());
+		$sTitle = utils::HtmlEntities($this->sTitle);
+		$sFile = utils::HtmlEntities($this->GetDefinitionFile());
 		$sUrl = utils::GetAbsoluteUrlAppRoot().'pages/ajax.render.php';
 		$sReloadURL = $this->GetReloadURL();
 

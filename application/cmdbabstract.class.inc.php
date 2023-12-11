@@ -744,7 +744,13 @@ HTML
 			$oPage->SetCurrentTab($sTabCode, $oAttDef->GetLabel().$sCount, $sTabDescription);
 
 			$aArgs = array('this' => $this);
-			$bReadOnly = ($iFlags & (OPT_ATT_READONLY | OPT_ATT_SLAVE));
+			
+			$sEditWhen = $oAttDef->GetEditWhen();
+			// Calculate if edit_when allows to edit based on current $bEditMode
+			$bIsEditableBasedOnEditWhen =  ($sEditWhen === LINKSET_EDITWHEN_ALWAYS) || 
+				($bEditMode ? $sEditWhen === LINKSET_EDITWHEN_ON_HOST_EDITION : $sEditWhen === LINKSET_EDITWHEN_ON_HOST_DISPLAY);
+
+			$bReadOnly = ($iFlags & (OPT_ATT_READONLY | OPT_ATT_SLAVE)) || !$bIsEditableBasedOnEditWhen;
 			if ($bEditMode && (!$bReadOnly)) {
 				$sInputId = $this->m_iFormId.'_'.$sAttCode;
 				$sDisplayValue = ''; // not used
@@ -754,9 +760,9 @@ HTML
 				$oPage->add($sHTMLValue);
 			} else {
 				if ($oAttDef->IsIndirect()) {
-					$oBlockLinkSetViewTable = new BlockIndirectLinkSetViewTable($oPage, $this, $sClass, $sAttCode, $oAttDef);
+					$oBlockLinkSetViewTable = new BlockIndirectLinkSetViewTable($oPage, $this, $sClass, $sAttCode, $oAttDef, $bReadOnly);
 				} else {
-					$oBlockLinkSetViewTable = new BlockDirectLinkSetViewTable($oPage, $this, $sClass, $sAttCode, $oAttDef);
+					$oBlockLinkSetViewTable = new BlockDirectLinkSetViewTable($oPage, $this, $sClass, $sAttCode, $oAttDef, $bReadOnly);
 				}
 				$oPage->AddUiBlock($oBlockLinkSetViewTable);
 			}
@@ -4538,7 +4544,7 @@ HTML;
 		return $res;
 	}
 
-	public function PostInsertActions(): void
+	protected function PostInsertActions(): void
 	{
 		parent::PostInsertActions();
 
@@ -4562,6 +4568,9 @@ HTML;
 		InlineImage::FinalizeInlineImages($this);
 	}
 
+	/**
+	 * @deprecated 3.1.1 3.2.0 N°6966 We will have only one DBClone method in the future
+	 */
 	protected function DBCloneTracked_Internal($newKey = null)
 	{
         /** @var cmdbAbstractObject $oNewObj */
@@ -4601,7 +4610,7 @@ HTML;
 		return $res;
 	}
 
-	public function PostUpdateActions(array $aChanges): void
+	protected function PostUpdateActions(array $aChanges): void
 	{
 		parent::PostUpdateActions($aChanges);
 
@@ -4650,7 +4659,10 @@ HTML;
 		return $oDeletionPlan;
 	}
 
-		protected function DBDeleteTracked_Internal(&$oDeletionPlan = null)
+	/**
+	 * @deprecated 3.1.1 3.2.0 N°6967 We will have only one DBDelete method in the future
+	 */
+	protected function DBDeleteTracked_Internal(&$oDeletionPlan = null)
 	{
 		// Invoke extensions before the deletion (the deletion will do some cleanup and we might loose some information
 		/** @var \iApplicationObjectExtension $oExtensionInstance */
@@ -5342,7 +5354,7 @@ EOF
 			$aErrors = $oObj->UpdateObjectFromPostedForm('');
 			$bResult = (count($aErrors) == 0);
 			if ($bResult) {
-				list($bResult, $aErrors) = $oObj->CheckToWrite();
+				[$bResult, $aErrors] = $oObj->CheckToWrite();
 			}
 			if ($bPreview) {
 				$sStatus = $bResult ? Dict::S('UI:BulkModifyStatusOk') : Dict::S('UI:BulkModifyStatusError');
@@ -5359,6 +5371,11 @@ EOF
 				'errors' => '<p>'.($bResult ? '' : implode('</p><p>', $aErrorsToDisplay)).'</p>',
 			);
 			if ($bResult && (!$bPreview)) {
+				// doing the check will load multiple times same objects :/
+				// but it shouldn't cost too much on execution time
+				// user can mitigate by selecting less extkeys/lnk to set and/or less objects to update 🤷‍♂️
+				$oObj->CheckChangedExtKeysValues();
+
 				$oObj->DBUpdate();
 			}
 		}
@@ -5941,40 +5958,54 @@ JS
 	}
 
 	/**
-	 * If the passed object is an instance of a link class, then will register each remote object for modification using {@see static::RegisterObjectAwaitingEventDbLinksChanged()}
+	 * Possibility for linked classes to be notified of current class modification
+	 *
 	 * If an external key was modified, register also the previous object that was linked previously.
 	 *
-	 * @throws \ArchivedObjectException
-	 * @throws \CoreException
-	 * @throws \Exception
+	 * @uses static::RegisterObjectAwaitingEventDbLinksChanged()
 	 *
-	 * @since 3.1.0 N°5906
+	 * @throws ArchivedObjectException
+	 * @throws CoreException
+	 * @throws Exception
+	 *
+	 * @since 3.1.0 N°5906 method creation
+	 * @since 3.1.1 3.2.0 N°6228 now just notify attributes having `with_php_computation`
 	 */
 	final protected function NotifyAttachedObjectsOnLinkClassModification(): void
 	{
-		$sClass = get_class($this);
-		if (false === MetaModel::IsLinkClass($sClass)) {
-			return;
-		}
 		// previous values in case of link change
 		$aPreviousValues = $this->ListPreviousValuesForUpdatedAttributes();
+		$sClass = get_class($this);
+		$aClassExtKeyAttCodes = MetaModel::GetAttributesList($sClass, [AttributeExternalKey::class]);
+		foreach ($aClassExtKeyAttCodes as $sExternalKeyAttCode) {
+			/** @var AttributeExternalKey $oAttDef */
+			$oAttDef = MetaModel::GetAttributeDef($sClass, $sExternalKeyAttCode);
 
-		$aLnkClassExternalKeys = MetaModel::GetAttributesList($sClass, [AttributeExternalKey::class]);
-		foreach ($aLnkClassExternalKeys as $sExternalKeyAttCode) {
-			/** @var \AttributeExternalKey $oExternalKeyAttDef */
-			$oExternalKeyAttDef = MetaModel::GetAttributeDef($sClass, $sExternalKeyAttCode);
-			$sRemoteClassName = $oExternalKeyAttDef->GetTargetClass();
-
-			$sRemoteObjectId = $this->Get($sExternalKeyAttCode);
-			if ($sRemoteObjectId > 0) {
-				self::RegisterObjectAwaitingEventDbLinksChanged($sRemoteClassName, $sRemoteObjectId);
+			if (false === $this->DoesTargetObjectHavePhpComputation($oAttDef)) {
+				continue;
 			}
 
-			$sPreviousRemoteObjectId = $aPreviousValues[$sExternalKeyAttCode] ?? 0;
-			if ($sPreviousRemoteObjectId > 0) {
-				self::RegisterObjectAwaitingEventDbLinksChanged($sRemoteClassName, $sPreviousRemoteObjectId);
+			$sTargetObjectId = $this->Get($sExternalKeyAttCode);
+			if ($sTargetObjectId > 0) {
+				self::RegisterObjectAwaitingEventDbLinksChanged($oAttDef->GetTargetClass(), $sTargetObjectId);
+			}
+
+			$sPreviousTargetObjectId = $aPreviousValues[$sExternalKeyAttCode] ?? 0;
+			if ($sPreviousTargetObjectId > 0) {
+				self::RegisterObjectAwaitingEventDbLinksChanged($oAttDef->GetTargetClass(), $sPreviousTargetObjectId);
 			}
 		}
+	}
+
+	private function DoesTargetObjectHavePhpComputation(AttributeExternalKey $oAttDef): bool
+	{
+		/** @var AttributeLinkedSet $oAttDefMirrorLink */
+		$oAttDefMirrorLink = $oAttDef->GetMirrorLinkAttribute();
+		if (is_null($oAttDefMirrorLink) || false === $oAttDefMirrorLink->HasPHPComputation()){
+			return false;
+		}
+
+		return true;
 	}
 
 	/**

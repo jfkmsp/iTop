@@ -1,6 +1,6 @@
 <?php
 /**
- * @copyright   Copyright (C) 2010-2023 Combodo SARL
+ * @copyright   Copyright (C) 2010-2021 Combodo SARL
  * @license     http://opensource.org/licenses/AGPL-3.0
  */
 
@@ -14,10 +14,6 @@ use MetaModel;
 use MySQLTransactionNotClosedException;
 
 /**
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
- *
  * @group itopRequestMgmt
  * @group specificOrgInSampleData
  * Class TransactionsTest
@@ -108,6 +104,15 @@ class TransactionsTest extends ItopTestCase
 		}
 	}
 
+	/**
+	 * This test case was originaly in DBInsertProvider
+	 * @runInSeparateProcess Failing when run in the same process as other...
+	 */
+	public function testDBInsertCaseHistory38()
+	{
+		$this->testDBInsert(40, false);
+	}
+
 	public function DBInsertProvider()
 	{
 		return [
@@ -151,7 +156,6 @@ class TransactionsTest extends ItopTestCase
 			"History 35" => ['iFailAt' => 37, 'bIsInDB' => false],
 			"History 36" => ['iFailAt' => 38, 'bIsInDB' => false],
 			"History 37" => ['iFailAt' => 39, 'bIsInDB' => false],
-			"History 38" => ['iFailAt' => 40, 'bIsInDB' => false],
 		];
 	}
 
@@ -253,29 +257,28 @@ class TransactionsTest extends ItopTestCase
 
 	/**
 	 * @return void
-	 * @doesNotPerformAssertions
 	 */
-	public function testTransactionOpenedThenClosed()
+	public function testIsInsideTransaction()
 	{
-		CMDBSource::Query('START TRANSACTION;');
-		CMDBSource::Query('COMMIT;');
-	}
+		static::assertFalse(CMDBSource::IsInsideTransaction(), 'Should not be already inside a transaction');
 
-	/**
-	 * This will throw an exception in the tearDown method.
-	 * This cannot be detected nor by `@expectedException` nor `expectException` method, so we have a specific tearDown impl
-	 *
-	 * @return void
-	 * @doesNotPerformAssertions
-	 */
-	public function testTransactionOpenedNotClosed()
-	{
+		// First, with a transaction ended by a "COMMIT" statement
 		CMDBSource::Query('START TRANSACTION;');
+		static::assertTrue(CMDBSource::IsInsideTransaction(), 'Should be inside a translation');
+		CMDBSource::Query('COMMIT;');
+		static::assertFalse(CMDBSource::IsInsideTransaction(), 'Should not be inside a transaction anymore');
+
+		// Second, with a transaction ended by a "ROLLBACK" statement
+		CMDBSource::Query('START TRANSACTION;');
+		static::assertTrue(CMDBSource::IsInsideTransaction(), 'Should be inside a translation (again)');
+		CMDBSource::Query('ROLLBACK;');
+		static::assertFalse(CMDBSource::IsInsideTransaction(), 'Should not be inside a transaction anymore');
 	}
 
 	protected function tearDown(): void
 	{
 		try {
+			DbConnectionWrapper::SetDbConnectionMockForQuery();
 			parent::tearDown();
 		}
 		catch (MySQLTransactionNotClosedException $e) {

@@ -18,8 +18,8 @@ use Combodo\iTop\Application\UI\Base\Component\QuickCreate\QuickCreateHelper;
 use Combodo\iTop\Application\UI\Base\Layout\Object\ObjectSummary;
 use Combodo\iTop\Application\UI\Base\Layout\PageContent\PageContentFactory;
 use Combodo\iTop\Controller\AbstractController;
-use Combodo\iTop\Service\Router\Router;
 use Combodo\iTop\Service\Base\ObjectRepository;
+use Combodo\iTop\Service\Router\Router;
 use CoreCannotSaveObjectException;
 use DeleteException;
 use Dict;
@@ -170,6 +170,10 @@ JS;
 				// Remove blob edition from creation form @see N°5863 to allow blob edition in modal context
 				FormHelper::DisableAttributeBlobInputs($sRealClass, $aFormExtraParams);
 
+				if(FormHelper::HasMandatoryAttributeBlobInputs($oObjToClone)){
+					$oPage->AddUiBlock(FormHelper::GetAlertForMandatoryAttributeBlobInputsInModal(FormHelper::ENUM_MANDATORY_BLOB_MODE_CREATE));
+				}
+				
 				$aFormExtraParams['js_handlers']['cancel_button_on_click'] =
 					<<<JS
 				function() {
@@ -206,13 +210,14 @@ JS
 		}
 		return $oPage;
 	}
-	
+
 	/**
 	 * @return \iTopWebPage|\AjaxPage Object edit form in its webpage
 	 * @throws \ApplicationException
 	 * @throws \ArchivedObjectException
 	 * @throws \CoreException
 	 * @throws \SecurityException
+	 * @throws \Exception
 	 */
 	public function OperationModify()
 	{
@@ -293,6 +298,16 @@ JS;
 			// Remove blob edition from creation form @see N°5863 to allow blob edition in modal context
 			FormHelper::DisableAttributeBlobInputs($sClass, $aFormExtraParams);
 
+			if(FormHelper::HasMandatoryAttributeBlobInputs($oObj)){
+				$sMandatoryBlobAttCode = FormHelper::GetMandatoryAttributeBlobInputs($oObj);
+				$sAlertFormMandatoryAttMessageMode = FormHelper::ENUM_MANDATORY_BLOB_MODE_MODIFY_EMPTY;
+				$oMandatoryBlobAttCodeValue = $oObj->Get($sMandatoryBlobAttCode);
+				// If the current value of the mandatory attribute is not empty, display a different message
+				if($oMandatoryBlobAttCodeValue instanceof \ormDocument && !$oMandatoryBlobAttCodeValue->IsEmpty()){
+					$sAlertFormMandatoryAttMessageMode = FormHelper::ENUM_MANDATORY_BLOB_MODE_MODIFY_FILLED;
+				}
+				$oPage->AddUiBlock(FormHelper::GetAlertForMandatoryAttributeBlobInputsInModal($sAlertFormMandatoryAttMessageMode));
+			}
 		} else {
 			$oPage = new iTopWebPage('', $bPrintable);
 			$oPage->DisableBreadCrumb();
@@ -413,6 +428,8 @@ JS;
 						'transaction_id' => $sTransactionId,
 					],
 				]);
+
+				$oObj->CheckChangedExtKeysValues();
 				$oObj->DBInsertNoReload();
 
 
@@ -616,6 +633,8 @@ JS;
 					if (!empty($aErrors)) {
 						throw new CoreCannotSaveObjectException(array('id' => $oObj->GetKey(), 'class' => $sClass, 'issues' => $aErrors));
 					}
+
+					$oObj->CheckChangedExtKeysValues();
 
 					// Transactions are now handled in DBUpdate
 					$oObj->SetContextSection('temporary_objects', [

@@ -6,18 +6,11 @@
 
 namespace Combodo\iTop\Test\UnitTest\Core;
 
-use MockValueSetObjects;
 use Combodo\iTop\Test\UnitTest\ItopTestCase;
-use MetaModel;
 use ValueSetDefinition;
 use ValueSetEnum;
 
 
-/**
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
- */
 class ValueSetDefinitionTest extends ItopTestCase
 {
 	/**

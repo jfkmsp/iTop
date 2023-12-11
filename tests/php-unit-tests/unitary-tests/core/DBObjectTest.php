@@ -17,38 +17,42 @@
 //   along with iTop. If not, see <http://www.gnu.org/licenses/>
 //
 
-/**
- * Created by PhpStorm.
- * User: Eric
- * Date: 02/10/2017
- * Time: 13:58
- */
-
 namespace Combodo\iTop\Test\UnitTest\Core;
 
+use Attachment;
+use Combodo\iTop\Service\Events\EventData;
 use Combodo\iTop\Test\UnitTest\ItopDataTestCase;
 use CoreException;
 use DBObject;
+use InvalidExternalKeyValueException;
 use lnkContactToFunctionalCI;
 use lnkPersonToTeam;
 use MetaModel;
+use Organization;
+use Person;
+use Team;
+use User;
+use UserRights;
+use utils;
 
 
 /**
  * @group specificOrgInSampleData
- *
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
  */
 class DBObjectTest extends ItopDataTestCase
 {
 	const CREATE_TEST_ORG = true;
+	const INVALID_OBJECT_KEY = 123456789;
+
+	// Counts
+	public $aReloadCount = [];
 
 	protected function setUp(): void
 	{
 		parent::setUp();
 		$this->RequireOnceItopFile('core/dbobject.class.php');
+
+		$this->EventService_RegisterListener(EVENT_DB_OBJECT_RELOAD, [$this, 'CountObjectReload']);
 	}
 
 	/**
@@ -429,6 +433,262 @@ class DBObjectTest extends ItopDataTestCase
 				}
 			}
 		}
+	}
+
+	private function GetAlwaysTrueCallback(): callable
+	{
+		return static function () {
+			return true;
+		};
+	}
+
+	private function GetAlwaysFalseCallback(): callable
+	{
+		return static function () {
+			return false;
+		};
+	}
+
+	/**
+	 * @covers DBObject::CheckChangedExtKeysValues()
+	 */
+	public function testCheckExtKeysSiloOnAttributeExternalKey()
+	{
+		//--- Preparing data...
+		$this->bIsUsingSilo = true;
+		$oAlwaysTrueCallback = $this->GetAlwaysTrueCallback();
+		$oAlwaysFalseCallback = $this->GetAlwaysFalseCallback();
+
+		/** @var Organization $oDemoOrg */
+		$oDemoOrg = MetaModel::GetObjectByName(Organization::class, 'Demo');
+		/** @var Organization $oMyCompanyOrg */
+		$oMyCompanyOrg = MetaModel::GetObjectByName(Organization::class, 'My Company/Department');
+
+		/** @var Person $oPersonOfDemoOrg */
+		$oPersonOfDemoOrg = MetaModel::GetObjectByName(Person::class, 'Agatha Christie');
+		/** @var Person $oPersonOfMyCompanyOrg */
+		$oPersonOfMyCompanyOrg = MetaModel::GetObjectByName(Person::class, 'My first name My last name');
+
+		$sConfigurationManagerProfileId = 3; // Access to Person objects
+		$oUserWithAllowedOrgs = $this->CreateDemoOrgUser($oDemoOrg, $sConfigurationManagerProfileId);
+
+		$oAdminUser = MetaModel::GetObjectByName(User::class, 'admin', false);
+		if (is_null($oAdminUser)) {
+			$oAdminUser = $this->CreateUser('admin', 1);
+		}
+
+		/** @var Person $oPersonObject */
+		$oPersonObject = $this->CreatePerson(0, $oMyCompanyOrg->GetKey());
+
+		//--- Now we can do some tests !
+		UserRights::Login($oUserWithAllowedOrgs->Get('login'));
+		$this->ResetMetaModelQueyCacheGetObject();
+
+		try {
+			$oPersonObject->CheckChangedExtKeysValues();
+		} catch (InvalidExternalKeyValueException $eCannotSave) {
+			$this->fail('Should skip external keys already written in Database');
+		}
+
+		$oPersonObject->Set('manager_id', $oPersonOfDemoOrg->GetKey());
+		try {
+			$oPersonObject->CheckChangedExtKeysValues();
+		} catch (InvalidExternalKeyValueException $eCannotSave) {
+			$this->fail('Should allow objects in the same org as the current user');
+		}
+
+		try {
+			$oPersonObject->CheckChangedExtKeysValues($oAlwaysFalseCallback);
+			$this->fail('Should consider the callback returning "false"');
+		} catch (InvalidExternalKeyValueException $eCannotSave) {
+			// Ok, the exception was expected
+		}
+
+		$oPersonObject->Set('manager_id', $oPersonOfMyCompanyOrg->GetKey());
+		try {
+			$oPersonObject->CheckChangedExtKeysValues();
+			$this->fail('Should not allow objects not being in the allowed orgs of the current user');
+		} catch (InvalidExternalKeyValueException $eCannotSave) {
+			$this->assertEquals('manager_id', $eCannotSave->GetAttCode(), 'Should report the wrong external key attcode');
+			$this->assertEquals($oMyCompanyOrg->GetKey(), $eCannotSave->GetAttValue(), 'Should report the unauthorized external key value');
+		}
+
+		try {
+			$oPersonObject->CheckChangedExtKeysValues($oAlwaysTrueCallback);
+		} catch (InvalidExternalKeyValueException $eCannotSave) {
+			$this->fail('Should consider the callback returning "true"');
+		}
+
+		UserRights::Logoff();
+		$this->ResetMetaModelQueyCacheGetObject();
+
+		UserRights::Login($oAdminUser->Get('login'));
+		$oPersonObject->CheckChangedExtKeysValues();
+		$this->assertTrue(true, 'Admin user can create objects in any org');
+	}
+
+	/**
+	 * @covers DBObject::CheckChangedExtKeysValues()
+	 */
+	public function testCheckExtKeysOnAttributeLinkedSetIndirect()
+	{
+		//--- Preparing data...
+		$this->bIsUsingSilo = true;
+		/** @var Organization $oDemoOrg */
+		$oDemoOrg = MetaModel::GetObjectByName(Organization::class, 'Demo');
+		/** @var Person $oPersonOnItDepartmentOrg */
+		$oPersonOnItDepartmentOrg = MetaModel::GetObjectByName(Person::class, 'Anna Gavalda');
+		/** @var Person $oPersonOnDemoOrg */
+		$oPersonOnDemoOrg = MetaModel::GetObjectByName(Person::class, 'Claude Monet');
+
+		$sConfigManagerProfileId = 3; // access to Team and Contact objects
+		$oUserWithAllowedOrgs = $this->CreateDemoOrgUser($oDemoOrg, $sConfigManagerProfileId);
+
+		//--- Now we can do some tests !
+		UserRights::Login($oUserWithAllowedOrgs->Get('login'));
+		$this->ResetMetaModelQueyCacheGetObject();
+
+		$oTeam = MetaModel::NewObject(Team::class, [
+			'name' => 'The A Team',
+			'org_id' => $oDemoOrg->GetKey()
+		]);
+
+		// Part 1 - Test with an invalid id (non-existing object)
+		//
+		$oPersonLinks = \DBObjectSet::FromScratch(lnkPersonToTeam::class);
+		$oPersonLinks->AddObject(MetaModel::NewObject(lnkPersonToTeam::class, [
+			'person_id' => self::INVALID_OBJECT_KEY,
+			'team_id' => $oTeam->GetKey(),
+		]));
+		$oTeam->Set('persons_list', $oPersonLinks);
+
+		try {
+			$oTeam->CheckChangedExtKeysValues();
+			$this->fail('An unknown object should be detected as invalid');
+		} catch (InvalidExternalKeyValueException $e) {
+			// we are getting the exception on the lnk class
+			// In consequence attcode is `lnkPersonToTeam.person_id` instead of `Team.persons_list`
+			$this->assertEquals('person_id', $e->GetAttCode(), 'The reported attcode should be the external key on the link');
+			$this->assertEquals(self::INVALID_OBJECT_KEY, $e->GetAttValue(), 'The reported value should be the external key on the link');
+		}
+
+		try {
+			$oTeam->CheckChangedExtKeysValues($this->GetAlwaysTrueCallback());
+		} catch (InvalidExternalKeyValueException $e) {
+			$this->fail('Should have no error when callback returns true');
+		}
+
+		// Part 2 - Test with an allowed object
+		//
+		$oPersonLinks = \DBObjectSet::FromScratch(lnkPersonToTeam::class);
+		$oPersonLinks->AddObject(MetaModel::NewObject(lnkPersonToTeam::class, [
+			'person_id' => $oPersonOnDemoOrg->GetKey(),
+			'team_id' => $oTeam->GetKey(),
+		]));
+		$oTeam->Set('persons_list', $oPersonLinks);
+
+		try {
+			$oTeam->CheckChangedExtKeysValues();
+		} catch (InvalidExternalKeyValueException $e) {
+			$this->fail('An authorized object should be detected as valid');
+		}
+
+		try {
+			$oTeam->CheckChangedExtKeysValues($this->GetAlwaysFalseCallback());
+			$this->fail('Should cascade the callback result when it is "false"');
+		} catch (InvalidExternalKeyValueException $e) {
+			// Ok, the exception was expected
+		}
+
+		// Part 3 - Test with a not allowed object
+		//
+		$oPersonLinks = \DBObjectSet::FromScratch(lnkPersonToTeam::class);
+		$oPersonLinks->AddObject(MetaModel::NewObject(lnkPersonToTeam::class, [
+			'person_id' => $oPersonOnItDepartmentOrg->GetKey(),
+			'team_id' => $oTeam->GetKey(),
+		]));
+		$oTeam->Set('persons_list', $oPersonLinks);
+
+		try {
+			$oTeam->CheckChangedExtKeysValues();
+			$this->fail('An unauthorized object should be detected as invalid');
+		}
+		catch (InvalidExternalKeyValueException $e) {
+			// Ok, the exception was expected
+		}
+
+		try {
+			$oTeam->CheckChangedExtKeysValues($this->GetAlwaysTrueCallback());
+		} catch (InvalidExternalKeyValueException $e) {
+			$this->fail('Should cascade the callback result when it is "true"');
+		}
+
+		$oTeam->DBInsert(); // persisting invalid value and resets the object changed values
+		try {
+			$oTeam->CheckChangedExtKeysValues();
+		}
+		catch (InvalidExternalKeyValueException $e) {
+			$this->fail('An unauthorized value should be ignored when it is not being modified');
+		}
+	}
+
+	/**
+	 * @covers DBObject::CheckChangedExtKeysValues()
+	 */
+	public function testCheckExtKeysSiloOnAttributeObjectKey()
+	{
+		//--- Preparing data...
+		$this->bIsUsingSilo = true;
+		/** @var Organization $oDemoOrg */
+		$oDemoOrg = MetaModel::GetObjectByName(Organization::class, 'Demo');
+		/** @var Person $oPersonOnItDepartmentOrg */
+		$oPersonOnItDepartmentOrg = MetaModel::GetObjectByName(Person::class, 'Anna Gavalda');
+		/** @var Person $oPersonOnDemoOrg */
+		$oPersonOnDemoOrg = MetaModel::GetObjectByName(Person::class, 'Claude Monet');
+
+		$sConfigManagerProfileId = 3; // access to Team and Contact objects
+		$oUserWithAllowedOrgs = $this->CreateDemoOrgUser($oDemoOrg, $sConfigManagerProfileId);
+
+		//--- Now we can do some tests !
+		UserRights::Login($oUserWithAllowedOrgs->Get('login'));
+		$this->ResetMetaModelQueyCacheGetObject();
+
+		$oAttachment = MetaModel::NewObject(Attachment::class, [
+			'item_class' => Person::class,
+			'item_id' => $oPersonOnDemoOrg->GetKey(),
+		]);
+		try {
+			$oAttachment->CheckChangedExtKeysValues();
+		} catch (InvalidExternalKeyValueException $e) {
+			$this->fail('Should be allowed to create an attachment pointing to a ticket in the allowed org list');
+		}
+
+		$oAttachment = MetaModel::NewObject(Attachment::class, [
+			'item_class' => Person::class,
+			'item_id' => $oPersonOnItDepartmentOrg->GetKey(),
+		]);
+		$this->ResetMetaModelQueyCacheGetObject();
+		try {
+			$oAttachment->CheckChangedExtKeysValues();
+			$this->fail('There should be an error on attachment pointing to a non allowed org object');
+		} catch (InvalidExternalKeyValueException $e) {
+			$this->assertEquals('item_id', $e->GetAttCode(), 'Should report the object key attribute');
+			$this->assertEquals($oPersonOnItDepartmentOrg->GetKey(), $e->GetAttValue(), 'Should report the object key value');
+		}
+	}
+
+	private function CreateDemoOrgUser(Organization $oDemoOrg, string $sProfileId): User
+	{
+		utils::GetConfig()->SetModuleSetting('authent-local', 'password_validation.pattern', '');
+		$oUserWithAllowedOrgs = $this->CreateContactlessUser('demo_test_' . uniqid(__CLASS__, true), $sProfileId);
+		/** @var \URP_UserOrg $oUserOrg */
+		$oUserOrg = \MetaModel::NewObject('URP_UserOrg', ['allowed_org_id' => $oDemoOrg->GetKey(),]);
+		$oAllowedOrgList = $oUserWithAllowedOrgs->Get('allowed_org_list');
+		$oAllowedOrgList->AddItem($oUserOrg);
+		$oUserWithAllowedOrgs->Set('allowed_org_list', $oAllowedOrgList);
+		$oUserWithAllowedOrgs->DBWrite();
+
+		return $oUserWithAllowedOrgs;
 	}
 
 	/**
@@ -897,6 +1157,84 @@ class DBObjectTest extends ItopDataTestCase
 		return $oPerson;
 	}
 
+	public function ResetReloadCount()
+	{
+		$this->aReloadCount = [];
+	}
+
+	public function DebugReloadCount($sMsg, $bResetCount = true)
+	{
+		$iTotalCount = 0;
+		$aTotalPerClass = [];
+		foreach ($this->aReloadCount as $sClass => $aCountByKeys) {
+			$iClassCount = 0;
+			foreach ($aCountByKeys as $iCount) {
+				$iClassCount += $iCount;
+			}
+			$iTotalCount += $iClassCount;
+			$aTotalPerClass[$sClass] = $iClassCount;
+		}
+		$this->debug("$sMsg - $iTotalCount reload(s)");
+		foreach ($this->aReloadCount as $sClass => $aCountByKeys) {
+			$this->debug("    $sClass => $aTotalPerClass[$sClass] reload(s)");
+			foreach ($aCountByKeys as $sKey => $iCount) {
+				$this->debug("        $sClass::$sKey => $iCount");
+			}
+		}
+		if ($bResetCount) {
+			$this->ResetReloadCount();
+		}
+	}
+
+	public function CountObjectReload(EventData $oData)
+	{
+		$oObject = $oData->Get('object');
+		$sClass = get_class($oObject);
+		$sKey = $oObject->GetKey();
+		$iCount = $this->GetObjectReloadCount($sClass, $sKey);
+		$this->aReloadCount[$sClass][$sKey] = 1 + $iCount;
+	}
+
+	public function GetObjectReloadCount($sClass, $sKey)
+	{
+		return $this->aReloadCount[$sClass][$sKey] ?? 0;
+	}
+
+	/**
+	 * @since 3.1.0-3 3.1.1 3.2.0 N°6716 test creation
+	 */
+	public function testConstructorMemoryFootprint():void
+	{
+		$idx = 0;
+		$fStart = microtime(true);
+		$fStartLoop = $fStart;
+		$iInitialPeak = 0;
+		$iMaxAllowedMemoryIncrease = 1 * 1024 * 1024;
+
+		for ($i = 0; $i < 5000; $i++) {
+			/** @noinspection PhpUnusedLocalVariableInspection We intentionally use a reference that will disappear on each loop */
+			$oPerson = new \Person();
+			if (0 == ($idx % 100)) {
+				$fDuration = microtime(true) - $fStartLoop;
+				$iMemoryPeakUsage = memory_get_peak_usage();
+				if ($iInitialPeak === 0) {
+					$iInitialPeak = $iMemoryPeakUsage;
+					$sInitialPeak = \utils::BytesToFriendlyFormat($iInitialPeak, 4);
+				}
+
+				$sCurrPeak = \utils::BytesToFriendlyFormat($iMemoryPeakUsage, 4);
+				echo "$idx ".sprintf('%.1f ms', $fDuration * 1000)." - Peak Memory Usage: $sCurrPeak\n";
+
+				$this->assertTrue(($iMemoryPeakUsage - $iInitialPeak) <= $iMaxAllowedMemoryIncrease , "Peak memory changed from $sInitialPeak to $sCurrPeak after $i loops");
+
+				$fStartLoop = microtime(true);
+			}
+			$idx++;
+		}
+
+		$fTotalDuration = microtime(true) - $fStart;
+		echo 'Total duration: '.sprintf('%.3f s', $fTotalDuration)."\n\n";
+	}
 	/**
 	 * Data provider for test deletion
 	 *  N°5547 - Object deletion fails if friendlyname too long

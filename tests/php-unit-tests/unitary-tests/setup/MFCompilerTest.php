@@ -9,9 +9,6 @@ use SubMFCompiler;
 use utils;
 
 /**
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
  * @covers \MFCompiler::UseLatestPrecompiledFile
  */
 class MFCompilerTest extends ItopTestCase {
@@ -53,29 +50,31 @@ class MFCompilerTest extends ItopTestCase {
 		$sSourceDir = $sAppRootForProvider . 'datamodels' . DIRECTORY_SEPARATOR . '2.x';
 		$sDatamodel2xTargetDir = $sSourceDir . DIRECTORY_SEPARATOR . '/UseLatestPrecompiledFileProvider';
 
-		mkdir($sTempTargetDir);
-		mkdir($sExtensionTargetDir);
-		mkdir($sDatamodel2xTargetDir);
+		if (!is_dir($sTempTargetDir)) mkdir($sTempTargetDir);
+		if (!is_dir($sExtensionTargetDir)) @mkdir($sExtensionTargetDir);
+		if (!is_dir($sDatamodel2xTargetDir)) @mkdir($sDatamodel2xTargetDir);
 
 		self::$aFoldersToCleanup = [ $sTempTargetDir, $sExtensionTargetDir, $sDatamodel2xTargetDir ];
 
+		// Sometime in the past
+		$iTimeStart = time() - 100;
+
 		self::$aRessources['sPostCompilation1'] = tempnam($sTempTargetDir, $sPrefix);
-		sleep(1);
+		touch(self::$aRessources['sPostCompilation1'], $iTimeStart+=2);
 
 		//datamodel XML file in extension folder
 		self::$aRessources['sPrecompiledInExtensionFile1'] = tempnam($sExtensionTargetDir, $sPrefix);
+		touch(self::$aRessources['sPrecompiledInExtensionFile1'], $iTimeStart+=2);
 		self::$aRessources['sPrecompiledInExtensionFileUri1'] = "UseLatestPrecompiledFileProvider" . DIRECTORY_SEPARATOR . basename(self::$aRessources['sPrecompiledInExtensionFile1']);
 
 		//datamodel XML file in source dir /datamodels/2.x folder
 		self::$aRessources['sPrecompiledInDataModelXXFile1'] = tempnam($sDatamodel2xTargetDir, $sPrefix);
+		touch(self::$aRessources['sPrecompiledInDataModelXXFile1'], $iTimeStart+=2);
 		self::$aRessources['sPrecompiledInDataModelXXFileUri1'] = "UseLatestPrecompiledFileProvider" . DIRECTORY_SEPARATOR . basename(self::$aRessources['sPrecompiledInDataModelXXFile1']);
-
-		sleep(1);
-
 
 		//generate ressources from a previous setup: called postcompiled
 		self::$aRessources['sPostCompilation2'] = tempnam($sTempTargetDir, $sPrefix);
-		sleep(1);
+		touch(self::$aRessources['sPostCompilation2'], $iTimeStart+=2);
 
 		//simulate copy of /data/models.2.x or extensions ressources during setup in a temp directory
 		self::$aRessources['sCopiedExtensionFile1'] = $sTempTargetDir . DIRECTORY_SEPARATOR . basename(self::$aRessources['sPrecompiledInExtensionFile1']);
@@ -120,9 +119,8 @@ class MFCompilerTest extends ItopTestCase {
 	 * @param ?string $sExpectedReturn
 	 */
 	public function testUseLatestPrecompiledFile(string $sTempTargetDir, string $sPrecompiledFileUri, string $sPostCompilationLatestPrecompiledFile, string $sThemeDir, ?string $sExpectedReturn, bool $bDisableThemePrecompilationViaConf = false){
-		if ($bDisableThemePrecompilationViaConf){
-			utils::GetConfig()->Set('theme.enable_precompilation', false);
-		}
+		// Enable or disable precompilation depending on the test case
+		utils::GetConfig()->Set('theme.enable_precompilation', !$bDisableThemePrecompilationViaConf);
 		$sRes = $this->oMFCompiler->UseLatestPrecompiledFile($sTempTargetDir, $sPrecompiledFileUri, $sPostCompilationLatestPrecompiledFile, $sThemeDir);
 		$this->assertEquals($sExpectedReturn, $sRes);
 	}

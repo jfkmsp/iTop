@@ -32,9 +32,7 @@ define('UNIT_MAX_CACHE_FILES', 10);
 
 
 /**
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
+ * @runTestsInSeparateProcesses Required (at least) to mock the MetaModel and utils class
  */
 class apcEmulationTest extends ItopTestCase
 {

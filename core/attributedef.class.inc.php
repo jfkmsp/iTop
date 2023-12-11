@@ -91,6 +91,12 @@ define('LINKSET_EDITMODE_ACTIONS', 2); // Show the usual 'Actions' popup menu
 define('LINKSET_EDITMODE_INPLACE', 3); // The "linked" objects can be created/modified/deleted in place
 define('LINKSET_EDITMODE_ADDREMOVE', 4); // The "linked" objects can be added/removed in place
 
+define('LINKSET_EDITWHEN_NEVER', 0); // The linkset cannot be edited at all from inside this object
+define('LINKSET_EDITWHEN_ON_HOST_EDITION', 1); // The only possible action is to open a new window to create a new object
+define('LINKSET_EDITWHEN_ON_HOST_DISPLAY', 2); // Show the usual 'Actions' popup menu
+define('LINKSET_EDITWHEN_ALWAYS', 3); // Show the usual 'Actions' popup menu
+
+
 define('LINKSET_DISPLAY_STYLE_PROPERTY', 'property');
 define('LINKSET_DISPLAY_STYLE_TAB', 'tab');
 
@@ -791,7 +797,7 @@ abstract class AttributeDefinition
 	public function HasAValue($proposedValue): bool
 	{
 		// Default implementation, we don't really know what type $proposedValue will be
-		return is_null($proposedValue);
+		return !(is_null($proposedValue));
 	}
 
 	/**
@@ -1703,6 +1709,15 @@ class AttributeLinkedSet extends AttributeDefinition
 	public function GetEditMode()
 	{
 		return $this->GetOptional('edit_mode', LINKSET_EDITMODE_ACTIONS);
+	}	
+	
+	/**
+	 * @return int see LINKSET_EDITWHEN_* constants
+	 * @since 3.1.1 3.2.0 N°6385
+	 */
+	public function GetEditWhen(): int
+	{
+		return $this->GetOptional('edit_when', LINKSET_EDITWHEN_ALWAYS);
 	}
 
 	/**
@@ -1724,11 +1739,20 @@ class AttributeLinkedSet extends AttributeDefinition
 	 * @return bool true if Attribute has constraints
 	 * @since 3.1.0 N°6228
 	 */
-	public function GetHasConstraint()
+	public function HasPHPConstraint(): bool
 	{
 		return $this->GetOptional('with_php_constraint', false);
 	}
 
+	/**
+	 * @return bool true if Attribute has computation (DB_LINKS_CHANGED event propagation, `with_php_computation` attribute xml property), false otherwise
+	 * @since 3.1.1 3.2.0 N°6228
+	 */
+	public function HasPHPComputation(): bool
+	{
+		return $this->GetOptional('with_php_computation', false);
+	}
+	
 	public function GetLinkedClass()
 	{
 		return $this->Get('linked_class');
@@ -8584,7 +8608,7 @@ class AttributeBlob extends AttributeDefinition
 	public function RecordAttChange(DBObject $oObject, $original, $value): void
 	{
 		// N°6502 Don't record history if only the download count has changed
-		if ($original->EqualsExceptDownloadsCount($value)) {
+		if ((null !== $original) && (null !== $value) && $original->EqualsExceptDownloadsCount($value)) {
 			return;
 		}
 

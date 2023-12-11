@@ -1241,7 +1241,7 @@ abstract class MetaModel
 			}
 			$sTable = self::DBGetTable($sClass);
 
-			// Could be completed later with all the classes that are using a given table 
+			// Could be completed later with all the classes that are using a given table
 			if (!array_key_exists($sTable, $aTables)) {
 				$aTables[$sTable] = array();
 			}
@@ -1445,8 +1445,10 @@ abstract class MetaModel
 	 *
 	 * @return AttributeDefinition[]
 	 * @throws \CoreException
+	 *
+	 * @see GetAttributesList for attcode list
 	 */
-	final static public function ListAttributeDefs($sClass)
+	final public static function ListAttributeDefs($sClass)
 	{
 		self::_check_subclass($sClass);
 		return self::$m_aAttribDefs[$sClass];
@@ -1459,8 +1461,10 @@ abstract class MetaModel
 	 * @param string[] $aDesiredAttTypes Array of AttributeDefinition classes to filter the list on
 	 * @param string|null $sListCode If provided, attributes will be limited to those in this zlist
 	 *
-	 * @return array
+	 * @return string[] list of attcodes
 	 * @throws \CoreException
+	 *
+	 * @see ListAttributeDefs to get AttributeDefinition array instead
 	 */
 	final public static function GetAttributesList(string $sClass, array $aDesiredAttTypes = [], ?string $sListCode = null)
 	{
@@ -3522,7 +3526,7 @@ abstract class MetaModel
 		}
 
 		// Set the "host class" as soon as possible, since HierarchicalKeys use it for their 'target class' as well
-		// and this needs to be know early (for Init_IsKnowClass 19 lines below)		
+		// and this needs to be know early (for Init_IsKnowClass 19 lines below)
 		$oAtt->SetHostClass($sTargetClass);
 
 		// Some attributes could refer to a class
@@ -3564,7 +3568,7 @@ abstract class MetaModel
 
 		self::$m_aAttribDefs[$sTargetClass][$oAtt->GetCode()] = $oAtt;
 		self::$m_aAttribOrigins[$sTargetClass][$oAtt->GetCode()] = $sTargetClass;
-		// Note: it looks redundant to put targetclass there, but a mix occurs when inheritance is used		
+		// Note: it looks redundant to put targetclass there, but a mix occurs when inheritance is used
 	}
 
 	/**
@@ -3764,7 +3768,7 @@ abstract class MetaModel
 		self::$m_aStimuli[$sTargetClass][$oStimulus->GetCode()] = $oStimulus;
 
 		// I wanted to simplify the syntax of the declaration of objects in the biz model
-		// Therefore, the reference to the host class is set there 
+		// Therefore, the reference to the host class is set there
 		$oStimulus->SetHostClass($sTargetClass);
 	}
 
@@ -4219,38 +4223,76 @@ abstract class MetaModel
 		}
 		else
 		{
-			$aCurrentUser = array();
-			$aCurrentContact = array();
+			$aCurrentUser = [];
+			$aCurrentContact = [];
 			foreach ($aExpectedArgs as $expression)
 			{
 				$aName = explode('->', $expression->GetName());
 				if ($aName[0] == 'current_contact_id') {
 					$aPlaceholders['current_contact_id'] = UserRights::GetContactId();
-				}
-				if ($aName[0] == 'current_user') {
+				} else if ($aName[0] == 'current_user') {
 					array_push($aCurrentUser, $aName[1]);
-				}
-				if ($aName[0] == 'current_contact') {
+				} else if ($aName[0] == 'current_contact') {
 					array_push($aCurrentContact, $aName[1]);
 				}
 			}
 			if (count($aCurrentUser) > 0) {
-				$oUser = UserRights::GetUserObject();
-				$aPlaceholders['current_user->object()'] = $oUser;
-				foreach ($aCurrentUser as $sField) {
-					$aPlaceholders['current_user->'.$sField] = $oUser->Get($sField);
-				}
+				static::FillObjectPlaceholders($aPlaceholders, 'current_user', UserRights::GetUserObject(), $aCurrentUser);
 			}
 			if (count($aCurrentContact) > 0) {
-				$oPerson = UserRights::GetContactObject();
-				$aPlaceholders['current_contact->object()'] = $oPerson;
-				foreach ($aCurrentContact as $sField) {
-					$aPlaceholders['current_contact->'.$sField] = $oPerson->Get($sField);
-				}
+				static::FillObjectPlaceholders($aPlaceholders, 'current_contact', UserRights::GetContactObject(), $aCurrentContact);
 			}
 		}
 
 		return $aPlaceholders;
+	}
+
+	/**
+	 * @since 3.1.1 N°6824
+	 * @param array $aPlaceholders
+	 * @param string $sPlaceHolderPrefix
+	 * @param ?\DBObject $oObject
+	 * @param array $aCurrentUser
+	 *
+	 * @return void
+	 *
+	 */
+	private static function FillObjectPlaceholders(array &$aPlaceholders, string $sPlaceHolderPrefix, ?\DBObject $oObject, array $aCurrentUser) : void {
+		$sPlaceHolderKey = $sPlaceHolderPrefix."->object()";
+		if (is_null($oObject)){
+			$aContext = [
+				"current_user_id" => UserRights::GetUserId(),
+				"null object type" => $sPlaceHolderPrefix,
+				"fields" => $aCurrentUser,
+			];
+			IssueLog::Warning("Unresolved placeholders due to null object in current context", null,
+				$aContext);
+			$aPlaceholders[$sPlaceHolderKey] = Dict::Format("Core:Placeholder:CannotBeResolved", $sPlaceHolderKey);
+			foreach ($aCurrentUser as $sField) {
+				$sPlaceHolderKey = $sPlaceHolderPrefix . "->$sField";
+				$aPlaceholders[$sPlaceHolderKey] = Dict::Format("Core:Placeholder:CannotBeResolved", $sPlaceHolderKey);
+			}
+		} else {
+			$aPlaceholders[$sPlaceHolderKey] = $oObject;
+			foreach ($aCurrentUser as $sField) {
+				$sPlaceHolderKey = $sPlaceHolderPrefix . "->$sField";
+				// Mind that the "id" is not viewed as a valid att. code by \MetaModel::IsValidAttCode() so we have to test it manually
+				if ($sField !== "id" && false === MetaModel::IsValidAttCode(get_class($oObject), $sField)){
+					$aContext = [
+						"current_user_id" => UserRights::GetUserId(),
+						"obj_class" => get_class($oObject),
+						"placeholder" => $sPlaceHolderKey,
+						"invalid_field" => $sField,
+					];
+					IssueLog::Warning("Unresolved placeholder due to invalid attribute", null,
+						$aContext);
+					$aPlaceholders[$sPlaceHolderKey] = Dict::Format("Core:Placeholder:CannotBeResolved", $sPlaceHolderKey);
+					continue;
+				}
+
+				$aPlaceholders[$sPlaceHolderKey] = $oObject->Get($sField);
+			}
+		}
 	}
 
 	/**
@@ -5114,7 +5156,7 @@ abstract class MetaModel
 	 */
 	protected static function DBCreateTables($aCallback = null)
 	{
-		list($aErrors, $aSugFix, $aCondensedQueries) = self::DBCheckFormat();
+		[$aErrors, $aSugFix, $aCondensedQueries] = self::DBCheckFormat();
 
 		//$sSQL = implode('; ', $aCondensedQueries); Does not work - multiple queries not allowed
 		foreach($aCondensedQueries as $sQuery)
@@ -5136,7 +5178,7 @@ abstract class MetaModel
 	 */
 	protected static function DBCreateViews()
 	{
-		list($aErrors, $aSugFix) = self::DBCheckViews();
+		[$aErrors, $aSugFix] = self::DBCheckViews();
 
 		foreach($aSugFix as $sClass => $aTarget)
 		{
@@ -6298,6 +6340,13 @@ abstract class MetaModel
 	 */
 	public static function Startup($config, $bModelOnly = false, $bAllowCache = true, $bTraceSourceFiles = false, $sEnvironment = 'production')
 	{
+		// Startup on a new environment is not supported
+		static $bStarted = false;
+		if ($bStarted) {
+			return;
+		}
+		$bStarted = true;
+
 		self::$m_sEnvironment = $sEnvironment;
 
 		try {
@@ -6472,7 +6521,7 @@ abstract class MetaModel
 				$aCache['m_aExtensionClassNames'] = self::$m_aExtensionClassNames;
 				$aCache['m_Category2Class'] = self::$m_Category2Class;
 				$aCache['m_aRootClasses'] = self::$m_aRootClasses; // array of "classname" => "rootclass"
-				$aCache['m_aParentClasses'] = self::$m_aParentClasses; // array of ("classname" => array of "parentclass") 
+				$aCache['m_aParentClasses'] = self::$m_aParentClasses; // array of ("classname" => array of "parentclass")
 				$aCache['m_aChildClasses'] = self::$m_aChildClasses; // array of ("classname" => array of "childclass")
 				$aCache['m_aClassParams'] = self::$m_aClassParams; // array of ("classname" => array of class information)
 				$aCache['m_aAttribDefs'] = self::$m_aAttribDefs; // array of ("classname" => array of attributes)
@@ -6527,6 +6576,19 @@ abstract class MetaModel
 			$value = self::$m_aModulesParameters[$sModule]->Get($sProperty, $defaultvalue);
 		}
 		return $value;
+	}
+
+	/**
+	 * @internal Used for resetting the configuration during automated tests
+
+	 * @param \Config $oConfiguration
+	 *
+	 * @return void
+	 * @since 3.0.4 3.1.1 3.2.0
+	 */
+	public static function SetConfig(Config $oConfiguration)
+	{
+		self::$m_oConfig = $oConfiguration;
 	}
 
 	/**
@@ -6717,7 +6779,13 @@ abstract class MetaModel
 
 		if ($bMustBeFound && empty($aRow))
 		{
-			throw new CoreException("No result for the single row query: '$sSQL'");
+			$sNotFoundErrorMessage = "No result for the single row query";
+			IssueLog::Info($sNotFoundErrorMessage, LogChannels::CMDB_SOURCE, [
+				'class' => $sClass,
+				'key' => $iKey,
+				'sql_query' => $sSQL,
+				]);
+			throw new CoreException($sNotFoundErrorMessage);
 		}
 
 		return $aRow;
@@ -6810,25 +6878,21 @@ abstract class MetaModel
 	 *     $bMustBeFound=false)
 	 * @throws CoreException if no result found and $bMustBeFound=true
 	 * @throws ArchivedObjectException if archive mode disabled and result is archived and $bMustBeFound=true
-	 * @throws \Exception
-	 *
 	 */
 	public static function GetObject($sClass, $iKey, $bMustBeFound = true, $bAllowAllData = false, $aModifierProperties = null)
 	{
 		$oObject = self::GetObjectWithArchive($sClass, $iKey, $bMustBeFound, $bAllowAllData, $aModifierProperties);
 
-		if (empty($oObject))
-		{
+		if (empty($oObject)) {
 			return null;
 		}
 
-		if (!utils::IsArchiveMode() && $oObject->IsArchived())
-		{
+		if (!utils::IsArchiveMode() && $oObject->IsArchived()) {
 			if ($bMustBeFound) {
 				throw new ArchivedObjectException("The object $sClass::$iKey is archived");
-			} else {
-				return null;
 			}
+
+			return null;
 		}
 
 		return $oObject;
@@ -6861,6 +6925,22 @@ abstract class MetaModel
 		$iCount = (int) CMDBSource::QueryToScalar($sQuery);
 
 		return $iCount === 1;
+	}
+
+	public static function GetFinalClassName(string $sClass, int $iKey): string
+	{
+		if (MetaModel::IsStandaloneClass($sClass)) {
+			return $sClass;
+		}
+
+		$sRootClass = MetaModel::GetRootClass($sClass);
+		$sTable = MetaModel::DBGetTable($sRootClass);
+		$sKeyCol = MetaModel::DBGetKey($sRootClass);
+		$sEscapedKey = CMDBSource::Quote($iKey);
+		$sFinalClassField = Metamodel::DBGetClassField($sRootClass);
+
+		$sQuery = "SELECT `{$sFinalClassField}` FROM `{$sTable}` WHERE `{$sKeyCol}` = {$sEscapedKey}";
+		return  CMDBSource::QueryToScalar($sQuery);
 	}
 
 	/**
@@ -7611,14 +7691,12 @@ abstract class MetaModel
 		// Build the list of available extensions
 		//
 		$aInterfaces = [
-			'iApplicationUIExtension',
-			'iPreferencesExtension',
-			'iApplicationObjectExtension',
 			'iLoginFSMExtension',
-			'iLoginUIExtension',
 			'iLogoutExtension',
-			'iQueryModifier',
-			'iOnClassInitialization',
+			'iLoginUIExtension',
+			'iPreferencesExtension',
+			'iApplicationUIExtension',
+			'iApplicationObjectExtension',
 			'iPopupMenuExtension',
 			'iPageUIExtension',
 			'iPageUIBlockExtension',
@@ -7632,10 +7710,12 @@ abstract class MetaModel
 			'iBackofficeDictEntriesExtension',
 			'iBackofficeDictEntriesPrefixesExtension',
 			'iPortalUIExtension',
-			'ModuleHandlerApiInterface',
-			'iNewsroomProvider',
+			'iQueryModifier',
+			'iOnClassInitialization',
 			'iModuleExtension',
 			'iKPILoggerExtension',
+			'ModuleHandlerApiInterface',
+			'iNewsroomProvider',
 		];
 		foreach ($aInterfaces as $sInterface) {
 			self::$m_aExtensionClassNames[$sInterface] = array();

@@ -33,9 +33,6 @@ use QueryOQL;
  * All objects created in this test will be deleted by the test.
  *
  * @group iTopQuery
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
  */
 class QueryTest extends ItopDataTestCase
 {
@@ -85,6 +82,7 @@ class QueryTest extends ItopDataTestCase
 		}
 
 		$oQuery->DBInsert();
+		$this->assertFalse($oQuery->IsNew());
 
 		return $oQuery;
 	}
@@ -180,6 +178,9 @@ class QueryTest extends ItopDataTestCase
 		curl_setopt($curl, CURLOPT_USERPWD, self::USER . ':' . self::PASSWORD);
 		curl_setopt($curl, CURLOPT_URL, $url);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+		// Force disable of certificate check as most of dev / test env have a self-signed certificate
+		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+		curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 0);
 
 		// execute curl
 		$result = curl_exec($curl);
@@ -194,6 +195,8 @@ class QueryTest extends ItopDataTestCase
 	protected function tearDown(): void
 	{
 		$this->oUser->DBDelete();
+
+		parent::tearDown();
 	}
 
 }

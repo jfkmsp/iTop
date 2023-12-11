@@ -6,12 +6,8 @@ use CMDBSource;
 use Combodo\iTop\Test\UnitTest\ItopDataTestCase;
 use MetaModel;
 
-/**
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
- */
-class BulkChangeTest extends ItopDataTestCase {
+class BulkChangeTest extends ItopDataTestCase
+{
 	const CREATE_TEST_ORG = true;
 
 	protected function setUp(): void
@@ -59,8 +55,7 @@ class BulkChangeTest extends ItopDataTestCase {
 			true // localize
 		);
 
-		$oChange = \CMDBObject::GetCurrentChange();
-		$aRes = $oBulk->Process($oChange);
+		$aRes = $oBulk->Process();
 		static::assertNotNull($aRes);
 
 		foreach ($aRes as $aRow) {
@@ -96,8 +91,7 @@ class BulkChangeTest extends ItopDataTestCase {
 			true // localize
 		);
 
-		$oChange = \CMDBObject::GetCurrentChange();
-		$aRes = $oBulk->Process($oChange);
+		$aRes = $oBulk->Process();
 		static::assertNotNull($aRes);
 
 		foreach ($aRes as $aRow) {
@@ -177,7 +171,6 @@ class BulkChangeTest extends ItopDataTestCase {
 	 * @param $aReconcilKeys
 	 */
 	public function testCas1BulkChangeIssue($aInitData, $aCsvData, $aAttributes, $aExtKeys, $aReconcilKeys, $aResult) {
-		CMDBSource::Query('START TRANSACTION');
 		//change value during the test
 		$db_core_transactions_enabled=MetaModel::GetConfig()->Get('db_core_transactions_enabled');
 		MetaModel::GetConfig()->Set('db_core_transactions_enabled',false);
@@ -195,8 +188,6 @@ class BulkChangeTest extends ItopDataTestCase {
 			$aResult["id"]=$oServer->GetKey();
 			$this->debug("oServer->GetKey():".$oServer->GetKey());
 		}
-		$this->debug("aCsvData:".json_encode($aCsvData[0]));
-		$this->debug("aReconcilKeys:".$aReconcilKeys[0]);
 		$oBulk = new \BulkChange(
 			"Server",
 			$aCsvData,
@@ -208,13 +199,8 @@ class BulkChangeTest extends ItopDataTestCase {
 			"Y-m-d H:i:s", // date format
 			true // localize
 		);
-		$this->debug("BulkChange:");
-		$oChange = \CMDBObject::GetCurrentChange();
-		$this->debug("GetCurrentChange:");
-		$aRes = $oBulk->Process($oChange);
-		$this->debug("Process:");
+		$aRes = $oBulk->Process();
 		static::assertNotNull($aRes);
-		$this->debug("assertNotNull:");
 		foreach ($aRes as $aRow) {
 			if (array_key_exists('__STATUS__', $aRow)) {
 				$sStatus = $aRow['__STATUS__'];
@@ -234,7 +220,6 @@ class BulkChangeTest extends ItopDataTestCase {
 				$this->assertEquals( $aResult[0], $aRow[0]->GetDisplayableValue());
 			}
 		}
-		CMDBSource::Query('ROLLBACK');
 		MetaModel::GetConfig()->Set('db_core_transactions_enabled',$db_core_transactions_enabled);
 	}
 
@@ -380,7 +365,6 @@ class BulkChangeTest extends ItopDataTestCase {
 	 * @param $aReconcilKeys
 	 */
 	public function testCas2BulkChangeIssue($aInitData, $aCsvData, $aAttributes, $aExtKeys, $aReconcilKeys, $aResult) {
-		CMDBSource::Query('START TRANSACTION');
 		//change value during the test
 		$db_core_transactions_enabled=MetaModel::GetConfig()->Get('db_core_transactions_enabled');
 		MetaModel::GetConfig()->Set('db_core_transactions_enabled',false);
@@ -411,8 +395,7 @@ class BulkChangeTest extends ItopDataTestCase {
 			"Y-m-d H:i:s", // date format
 			true // localize
 		);
-		$oChange = \CMDBObject::GetCurrentChange();
-		$aRes = $oBulk->Process($oChange);
+		$aRes = $oBulk->Process();
 		static::assertNotNull($aRes);
 		foreach ($aRes as $aRow) {
 			foreach ($aRow as $i => $oCell) {
@@ -431,7 +414,6 @@ class BulkChangeTest extends ItopDataTestCase {
 			}
 			$this->assertEquals($aResult[0], $aRow[0]->GetDisplayableValue());
 		}
-		CMDBSource::Query('ROLLBACK');
 		MetaModel::GetConfig()->Set('db_core_transactions_enabled',$db_core_transactions_enabled);
 	}
 

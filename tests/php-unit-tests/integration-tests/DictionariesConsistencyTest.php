@@ -16,9 +16,21 @@
 namespace Combodo\iTop\Test\UnitTest\Integration;
 
 use Combodo\iTop\Test\UnitTest\ItopTestCase;
-use Dict;
+
+
 
 /**
+ * Wrapper to load dictionnary files without altering the main dictionnary
+ * Eval will be called within the current namespace (this is done by adding a "namespace" statement)
+ */
+class Dict
+{
+	public static function Add($sLanguageCode, $sEnglishLanguageDesc, $sLocalizedLanguageDesc, $aEntries)
+	{
+	}
+}
+/**
+ * For tests on compiled dict files, see {@see CompiledDictionariesConsistencyTest}
  * @group beforeSetup
  */
 class DictionariesConsistencyTest extends ItopTestCase
@@ -98,10 +110,12 @@ class DictionariesConsistencyTest extends ItopTestCase
 	{
 		$this->setUp();
 
+		$sAppRoot = $this->GetAppRoot();
+
 		$aDictFiles = array_merge(
-			glob(APPROOT.'datamodels/2.x/*/*.dict*.php'), // legacy form in modules
-			glob(APPROOT.'datamodels/2.x/*/dictionaries/*.dict*.php'), // modern form in modules
-			glob(APPROOT.'dictionaries/*.dict*.php') // framework
+			glob($sAppRoot.'datamodels/2.x/*/*.dict*.php'), // legacy form in modules
+			glob($sAppRoot.'datamodels/2.x/*/dictionaries/*.dict*.php'), // modern form in modules
+			glob($sAppRoot.'dictionaries/*.dict*.php') // framework
 		);
 		$aTestCases = array();
 		foreach ($aDictFiles as $sDictFile) {
@@ -139,80 +153,40 @@ class DictionariesConsistencyTest extends ItopTestCase
 	/**
 	 * @param string $sDictFile complete path for the file to check
 	 * @param bool $bIsSyntaxValid expected assert value
-	 *
-	 * @uses `php -l`
-	 * @uses \assertEquals()
 	 */
 	private function CheckDictionarySyntax(string $sDictFile, $bIsSyntaxValid = true): void
 	{
-		exec("php -l {$sDictFile}", $output, $return);
-
-		$bDictFileSyntaxOk = ($return === 0);
-
-		$sMessage = "File `{$sDictFile}` syntax didn't matched expectations\nparsing results=".var_export($output, true);
-		self::assertEquals($bIsSyntaxValid, $bDictFileSyntaxOk, $sMessage);
-	}
-
-	/**
-	 * @dataProvider ImportCsvMessageStillOkProvider
-	 * make sure N°5305 dictionary changes are still here and UI remains unbroken for any lang
-	 */
-	public function testImportCsvMessageStillOk($sLangCode, $sDictFile)
-	{
-		$aFailedLabels = [];
-		$aLabelsToTest = [
-			'UI:CSVReport-Value-SetIssue' => [],
-			'UI:CSVReport-Value-ChangeIssue' => [ 'arg1' ],
-			'UI:CSVReport-Value-NoMatch' => [ 'arg1' ],
-			'UI:CSVReport-Value-NoMatch-PossibleValues' => [ 'arg1', 'arg2' ],
-			'UI:CSVReport-Value-NoMatch-NoObject' => [ 'arg1' ],
-			'UI:CSVReport-Value-NoMatch-NoObject-ForCurrentUser' => [ 'arg1' ],
-			'UI:CSVReport-Value-NoMatch-SomeObjectNotVisibleForCurrentUser' => [ 'arg1' ],
-		];
-
-		$sLanguageCode = strtoupper(str_replace('-', ' ', $sLangCode));
-		require_once(APPROOT.'env-'.\utils::GetCurrentEnvironment().'/dictionaries/languages.php');
-		Dict::SetUserLanguage($sLanguageCode);
-		foreach ($aLabelsToTest as $sLabelKey => $aLabelArgs){
-			try{
-				$sLabelValue = Dict::Format($sLabelKey, ...$aLabelArgs);
-				//$this->debug($sLabelValue);
-			} catch (\ValueError $e){
-				$aFailedLabels[] = $sLabelKey;
-
-				$this->debug([
-					'exception' => $e->getMessage(),
-					'trace' => $e->getTraceAsString(),
-					'label_name' => $sLabelKey,
-					'label_args' =>$aLabelArgs,
-				]);
+		$sPHP = file_get_contents($sDictFile);
+		// Strip php tag to allow "eval"
+		$sPHP = substr(trim($sPHP), strlen('<?php'));
+		// Make sure the Dict class is the one declared in the current file
+		$sPHP = 'namespace '.__NAMESPACE__.";\n".$sPHP;
+		$iLineShift = 1; // Cope with the shift due to the namespace statement
+		$sPHP = str_replace(
+			['ITOP_APPLICATION_SHORT', 'ITOP_APPLICATION', 'ITOP_VERSION_NAME'],
+			['\'itop\'', '\'itop\'', '\'1.2.3\''],
+			$sPHP
+		);
+		try {
+			eval($sPHP);
+			// Reaching this point => No syntax error
+			if (!$bIsSyntaxValid) {
+				$this->fail("Failed to detect syntax error in dictionary `{$sDictFile}` (which is known as being INCORRECT)");
 			}
 		}
-		$this->assertEquals([], $aFailedLabels, "test fail for lang $sLangCode and labels (" . implode(", ", $aFailedLabels) . ')');
-	}
-
-	public function ImportCsvMessageStillOkProvider(){
-		return $this->GetDictFiles();
-	}
-
-	/**
-	 * return a map linked to *.dict.php files that are generated after setup
-	 * each entry key is lang code (example 'en')
-	 * each value is an array with lang code (again) and dict file path
-	 * @return array
-	 */
-	private function GetDictFiles() : array {
-		$aDictFiles = [];
-
-		foreach (glob(APPROOT.'env-'.\utils::GetCurrentEnvironment().'/dictionaries/*.dict.php') as $sDictFile){
-			if (preg_match('/.*\\/(.*).dict.php/', $sDictFile, $aMatches)){
-				$sLangCode = $aMatches[1];
-				$aDictFiles[$sLangCode] = [
-					'lang' => $sLangCode,
-					'file' => $sDictFile
-				];
+		catch (\Error $e) {
+			if ($bIsSyntaxValid) {
+				$iLine = $e->getLine() - $iLineShift;
+				$this->fail("Invalid dictionary: {$e->getMessage()} in {$sDictFile}:{$iLine}");
 			}
 		}
-		return $aDictFiles;
+		catch (\Exception $e) {
+			if ($bIsSyntaxValid) {
+				$iLine = $e->getLine() - $iLineShift;
+				$sExceptionClass = get_class($e);
+				$this->fail("Exception thrown from dictionary: '$sExceptionClass: {$e->getMessage()}' in {$sDictFile}:{$iLine}");
+			}
+		}
+		$this->assertTrue(true);
 	}
 }

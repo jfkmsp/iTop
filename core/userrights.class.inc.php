@@ -761,13 +761,24 @@ class UserRights
 	protected static $m_aCacheContactPictureAbsUrl = [];
 	/** @var UserRightsAddOnAPI $m_oAddOn */
 	protected static $m_oAddOn;
-	protected static $m_oUser;
-	protected static $m_oRealUser;
+	protected static $m_oUser = null;
+	protected static $m_oRealUser = null;
 	protected static $m_sSelfRegisterAddOn = null;
 	protected static $m_aAdmins = array();
 	protected static $m_aPortalUsers = array();
 	/** @var array array('sName' => $sName, 'bSuccess' => $bSuccess); */
 	private static $m_sLastLoginStatus = null;
+
+	/**
+	 * @return void
+	 * @since 3.0.4 3.1.1 3.2.0
+	 */
+	protected static function ResetCurrentUserData()
+	{
+		self::$m_oUser = null;
+		self::$m_oRealUser = null;
+		self::$m_sLastLoginStatus = null;
+	}
 
 	/**
 	 * @param string $sModuleName
@@ -787,8 +798,7 @@ class UserRights
 		}
 		self::$m_oAddOn = new $sModuleName;
 		self::$m_oAddOn->Init();
-		self::$m_oUser = null;
-		self::$m_oRealUser = null;
+		self::ResetCurrentUserData();
 	}
 
 	/**
@@ -846,6 +856,8 @@ class UserRights
 	}
 
 	/**
+	 * Set the current user (as part of the login process)
+	 *
 	 * @param string $sLogin Login of the concerned user
 	 * @param string $sAuthentication
 	 *
@@ -855,6 +867,8 @@ class UserRights
 	 */
 	public static function Login($sLogin, $sAuthentication = 'any')
 	{
+		self::ResetCurrentUserData();
+
 		$oUser = self::FindUser($sLogin, $sAuthentication);
 		if (is_null($oUser))
 		{
@@ -870,6 +884,19 @@ class UserRights
 
 		Dict::SetUserLanguage(self::GetUserLanguage());
 		return true;
+	}
+
+	/**
+	 * Reset current user and cleanup associated SESSION data
+	 *
+	 * @return void
+	 * @since 3.0.4 3.1.1 3.2.0
+	 */
+	public static function Logoff()
+	{
+		self::ResetCurrentUserData();
+		Dict::SetUserLanguage(null);
+		self::_ResetSessionCache();
 	}
 
 	/**
@@ -1096,9 +1123,7 @@ class UserRights
 	}
 
 	/**
-	 * Return the current user login or an empty string if nobody connected.
-	 *
-	 * @return string
+	 * @return string connected {@see User} login field value, otherwise empty string
 	 */
 	public static function GetUser()
 	{
@@ -1546,9 +1571,9 @@ class UserRights
 
 	/**
 	 * @param string $sClass
-	 * @param int $iActionCode
-	 * @param \DBObjectSet $oInstanceSet
-	 * @param \User $oUser
+	 * @param int $iActionCode see UR_ACTION_* constants
+	 * @param DBObjectSet $oInstanceSet
+	 * @param User $oUser
 	 *
 	 * @return int (UR_ALLOWED_YES|UR_ALLOWED_NO|UR_ALLOWED_DEPENDS)
 	 * @throws \CoreException

@@ -8,10 +8,6 @@ use MetaModel;
 
 
 /**
- * @runTestsInSeparateProcesses
- * @preserveGlobalState disabled
- * @backupGlobals disabled
- *
  * created a dedicated test for external keys imports.
  *
  * Class BulkChangeExtKeyTest
@@ -221,19 +217,12 @@ class BulkChangeExtKeyTest extends ItopDataTestCase {
 
 	private function GetUid(){
 		if (is_null($this->sUid)){
-			$this->sUid = date('dmYHis');
+			$this->sUid = uniqid('test');
 		}
 
 		return $this->sUid;
 	}
 
-	/**	 *
-	 * @param $aInitData
-	 * @param $aCsvData
-	 * @param $aAttributes
-	 * @param $aExtKeys
-	 * @param $aReconcilKeys
-	 */
 	public function performBulkChangeTest($sExpectedDisplayableValue, $sExpectedDescription, $oOrg, $bIsRackReconKey,
 		$aAdditionalCsvData=null, $aExtKeys=null, $sSearchLinkUrl=null, $sError="Object not found") {
 		if ($sSearchLinkUrl===null){

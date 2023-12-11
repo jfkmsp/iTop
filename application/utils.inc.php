@@ -52,22 +52,31 @@ class utils
 {
 	/**
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_INTEGER = 'integer';
 	/**
+	 * Datamodel class
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
+	 * @since 2.7.10 3.0.4 3.1.1 3.2.0 N°6606 update PHPDoc
+	 * @uses MetaModel::IsValidClass()
 	 */
 	public const ENUM_SANITIZATION_FILTER_CLASS = 'class';
 	/**
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.4 3.1.1 3.2.0 N°6606
+	 * @uses class_exists()
+	 */
+	public const ENUM_SANITIZATION_FILTER_PHP_CLASS = 'php_class';
+	/**
+	 * @var string
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_STRING = 'string';
 	/**
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_CONTEXT_PARAM = 'context_param';
 	/**
@@ -82,22 +91,22 @@ class utils
 	public const ENUM_SANITIZATION_FILTER_OPERATION = 'operation';
 	/**
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_PARAMETER = 'parameter';
 	/**
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_FIELD_NAME = 'field_name';
 	/**
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_TRANSACTION_ID = 'transaction_id';
 	/**
 	 * @var string For XML / HTML node identifiers
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_ELEMENT_IDENTIFIER = 'element_identifier';
 	/**
@@ -107,12 +116,13 @@ class utils
 	public const ENUM_SANITIZATION_FILTER_VARIABLE_NAME = 'variable_name';
 	/**
 	 * @var string
-	 * @since 3.0.0
+	 * @since 2.7.10 3.0.0
 	 */
 	public const ENUM_SANITIZATION_FILTER_RAW_DATA = 'raw_data';
 	/**
 	 * @var string
-	 * @since 3.0.2, 3.1.0 N°4899
+	 * @since 3.0.2 3.1.0 N°4899
+	 * @since 2.7.10 N°6606
 	 */
 	public const ENUM_SANITIZATION_FILTER_URL = 'url';
 
@@ -154,6 +164,8 @@ class utils
 	private static $m_aParamSource = array();
 
 	private static $iNextId = 0;
+
+	private static $m_sAppRootUrl = null;
 
 	protected static function LoadParamFile($sParamFile)
 	{
@@ -396,6 +408,10 @@ class utils
 	 * @since 2.7.0 new 'element_identifier' filter
 	 * @since 3.0.0 new utils::ENUM_SANITIZATION_* const
 	 * @since 2.7.7, 3.0.2, 3.1.0 N°4899 - new 'url' filter
+	 * @since 2.7.10 N°6606 use the utils::ENUM_SANITIZATION_* const
+	 * @since 2.7.10 N°6606 new case for ENUM_SANITIZATION_FILTER_PHP_CLASS
+	 *
+	 * @link https://www.php.net/manual/en/filter.filters.sanitize.php PHP sanitization filters
 	 */
 	protected static function Sanitize_Internal($value, $sSanitizationFilter)
 	{
@@ -414,6 +430,13 @@ class utils
 
 			case static::ENUM_SANITIZATION_FILTER_STRING:
 				$retValue = filter_var($value, FILTER_SANITIZE_SPECIAL_CHARS);
+				break;
+
+			case static::ENUM_SANITIZATION_FILTER_PHP_CLASS:
+				$retValue = $value;
+				if (!class_exists($value)) {
+					$retValue = false;
+				}
 				break;
 
 			case static::ENUM_SANITIZATION_FILTER_CONTEXT_PARAM:
@@ -481,6 +504,7 @@ class utils
 
 			// For URL
 			case static::ENUM_SANITIZATION_FILTER_URL:
+                // N°6350 - returns only valid URLs
 				$retValue = filter_var($value, FILTER_VALIDATE_URL);
 				break;
 
@@ -1024,7 +1048,7 @@ class utils
      */
 	public static function GetAbsoluteUrlAppRoot($bForceTrustProxy = false)
 	{
-		static $sUrl = null;
+		$sUrl = static::$m_sAppRootUrl;
 		if ($sUrl === null || $bForceTrustProxy)
 		{
 			$sUrl = self::GetConfig()->Get('app_root_url');
@@ -1045,8 +1069,9 @@ class utils
 				}
 				$sUrl = str_replace(SERVER_NAME_PLACEHOLDER, $sServerName, $sUrl);
 			}
+			static::$m_sAppRootUrl = $sUrl;
 		}
-		return $sUrl;
+		return static::$m_sAppRootUrl;
 	}
 
 	/**
@@ -1398,12 +1423,22 @@ class utils
 	}
 
 	/**
+	 * @return string A path to the folder into which data can be written
+	 * @internal
+	 * @since N°6097 2.7.10 3.0.4 3.1.1
+	 */
+	public static function GetDataPath(): string
+	{
+		return APPROOT.'data/';
+	}
+
+	/**
 	 * @return string A path to a folder into which any module can store cache data
 	 * The corresponding folder is created or cleaned upon code compilation
 	 */
 	public static function GetCachePath()
 	{
-		return APPROOT.'data/cache-'.MetaModel::GetEnvironment().'/';
+		return static::GetDataPath().'cache-'.MetaModel::GetEnvironment().'/';
 	}
 
 	/**
@@ -2464,14 +2499,16 @@ SQL;
 						$aHeaders = static::ParseHeaders($http_response_header);
 						$sMimeType = array_key_exists('Content-Type', $aHeaders) ? strtolower($aHeaders['Content-Type']) : 'application/x-octet-stream';
 						// Compute the file extension from the MIME Type
-						foreach($aKnownExtensions as $sExtValue => $sMime)
-						{
-							if ($sMime === $sMimeType)
-							{
+						foreach ($aKnownExtensions as $sExtValue => $sMime) {
+							if ($sMime === $sMimeType) {
 								$sExtension = '.'.$sExtValue;
 								break;
 							}
 						}
+					}
+					$sPathName = pathinfo($sPath, PATHINFO_FILENAME);
+					if (utils::IsNotNullOrEmptyString($sPathName)) {
+						$sFileName = $sPathName;
 					}
 					$sFileName .= $sExtension;
 				}
@@ -2994,6 +3031,7 @@ HTML;
 	 *
 	 * @return bool if string null or empty
 	 * @since 3.0.2 N°5302
+	 * @since 2.7.10 N°6458 add method in the 2.7 branch
 	 */
 	public static function IsNullOrEmptyString(?string $sString): bool
 	{
@@ -3009,6 +3047,7 @@ HTML;
 	 *
 	 * @return bool if string is not null and not empty
 	 * @since 3.0.2 N°5302
+	 * @since 2.7.10 N°6458 add method in the 2.7 branch
 	 */
 	public static function IsNotNullOrEmptyString(?string $sString): bool
 	{
