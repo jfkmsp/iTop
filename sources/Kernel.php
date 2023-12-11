@@ -34,16 +34,16 @@ class Kernel extends BaseKernel
 
 	private function getConfigDir(): string
 	{
-		return $this->getProjectDir().'/conf/production/app';
+		return \utils::GetConfigPath() . '/symfony';
 	}
 
 	public function getCacheDir(): string
 	{
-		return $this->getProjectDir().'/data/app/cache';
+		return \utils::GetCachePath() . '/symfony';
 	}
 
 	public function getLogDir(): string
 	{
-		return $this->getProjectDir().'/log/app';
+		return \utils::GetLogPath() . '/symfony';
 	}
 }

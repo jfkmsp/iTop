@@ -1747,6 +1747,20 @@ SQL;
 	}
 
 	/**
+	 * @return string A path to the configuration folder
+	 * @internal
+	 * @since 3.2.0
+	 */
+	public static function GetConfigPath($sEnvironment = null): string
+	{
+		if (is_null($sEnvironment)) {
+			$sEnvironment = self::GetCurrentEnvironment();
+		}
+
+		return APPROOT.'conf/'.$sEnvironment;
+	}
+
+	/**
 	 * @param string $sEnvironment
 	 *
 	 * @return string target configuration file name (including full path)

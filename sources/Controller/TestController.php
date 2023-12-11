@@ -14,6 +14,8 @@ class TestController extends AbstractAppController
 	{
 		$number = random_int(0, $max);
 
+		dump(['test' => true]);
+
 		return new Response(
 			'<html><body>Lucky number: '.$number.'</body></html>'
 		);
