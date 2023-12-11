@@ -1241,7 +1241,7 @@ class DBObjectTest extends ItopDataTestCase
 	 *
 	 * @return array data
 	 */
-	public function getDeletionLongValueProvider()
+	public function DeletionLongValueProvider()
 	{
 		return [
 			'friendlyname longer than 255 chracters with smiley'               => [
@@ -1260,7 +1260,7 @@ class DBObjectTest extends ItopDataTestCase
 	 *
 	 * @covers       DBObject::DBIncrement
 	 *
-	 * @dataProvider getDeletionLongValueProvider
+	 * @dataProvider DeletionLongValueProvider
 	 *
 	 */
 	public function testDeletionLongValue(string $sName, string $sFirstName)
